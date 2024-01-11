@@ -1,6 +1,6 @@
 {
     "name": "PathfindingLagFix",
-    "version_number": "1.0.0",
+    "version_number": "1.0.1",
     "website_url": "https://github.com/Zaggy1024/LC_PathfindingLagFix/",
     "description": "Lethal Company mod to fix stutters caused by Brackens and other AI.",
     "dependencies": [
