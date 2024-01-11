@@ -99,8 +99,6 @@ namespace PathfindingLagFix.Patches
                 new CodeInstruction(OpCodes.Stfld, Reflection.f_EnemyAI_searchCoroutine),
             });
 
-            foreach ( var instruction in instructionsList )
-                Plugin.Instance.Logger.LogInfo( instruction );
             return instructionsList;
         }
 
