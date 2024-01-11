@@ -161,7 +161,7 @@ namespace PathfindingLagFix.Patches
                 new CodeInstruction(OpCodes.Ldfld, Reflection.f_EnemyAI_searchCoroutine),
                 new CodeInstruction(OpCodes.Brtrue_S, skipSearchCoroutineLabel),
 
-                //   searchCoroutine = StartCoroutine(PatchFlowermanAI.ChooseFarNodeWithPlayerTarget(this));
+                //   searchCoroutine = StartCoroutine(PatchFlowermanAI.ChoosePlayerEvasionLocation(this));
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldarg_0),
