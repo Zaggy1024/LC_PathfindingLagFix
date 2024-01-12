@@ -70,6 +70,7 @@
     <Compile Include="Patches\Common.cs" />
     <Compile Include="Patches\Coroutines.cs" />
     <Compile Include="Patches\PatchFlowermanAI.cs" />
+    <Compile Include="Patches\PatchPufferAI.cs" />
     <Compile Include="Patches\Reflection.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
