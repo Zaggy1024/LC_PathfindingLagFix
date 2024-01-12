@@ -15,9 +15,11 @@ namespace PathfindingLagFix.Patches
     {
         static readonly FieldInfo f_FlowermanAI_mainEntrancePosition = AccessTools.Field(typeof(FlowermanAI), "mainEntrancePosition");
 
+        public const string PATCH_NAME = "Bracken lag patch";
+
         public static void FinishChoosingFarthestNodeFromEntrance(FlowermanAI flowerman, Transform node)
         {
-            new NotSupportedException("FinishChoosingFarthestNodeFromEntrance stub was called");
+            throw Common.StubError(nameof(FinishChoosingFarthestNodeFromEntrance), PATCH_NAME);
         }
 
         static IEnumerator ChooseFarthestNodeFromEntrance(FlowermanAI flowerman, Vector3 mainEntrancePosition)
@@ -104,7 +106,7 @@ namespace PathfindingLagFix.Patches
 
         public static void FinishChoosingPlayerEvasionLocation(FlowermanAI flowerman, Transform node)
         {
-            new NotSupportedException("FinishChoosingPlayerEvasionLocation stub was called");
+            throw Common.StubError(nameof(FinishChoosingPlayerEvasionLocation), PATCH_NAME);
         }
 
         public static IEnumerator ChoosePlayerEvasionLocation(FlowermanAI flowerman)

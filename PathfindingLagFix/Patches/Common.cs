@@ -113,5 +113,10 @@ namespace PathfindingLagFix.Patches
 
             return ((LocalBuilder)instruction.operand).LocalIndex;
         }
+
+        public static Exception StubError(string name, string patchName)
+        {
+            return new NotSupportedException($"{name} stub was called, {patchName} may not be supported on this game version");
+        }
     }
 }
