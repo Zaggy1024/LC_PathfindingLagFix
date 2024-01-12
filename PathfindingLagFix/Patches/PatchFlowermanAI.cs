@@ -187,8 +187,6 @@ namespace PathfindingLagFix.Patches
                 return null;
             }
 
-            var instructionsList = instructions.ToList();
-
             var vanillaInstructions = PatchFlowermanAI.AvoidClosestPlayerInstructions.ToArray();
             if (!vanillaInstructions[0].IsLdloc())
             {
@@ -207,11 +205,7 @@ namespace PathfindingLagFix.Patches
 
             vanillaInstructions.TransferLabelsAndVariables(generator);
 
-            var returnInstruction = instructionsList.FindIndex(insn => insn.opcode == OpCodes.Ret);
-            instructionsList.RemoveRange(0, returnInstruction);
-            instructionsList.InsertRange(0, vanillaInstructions);
-
-            return instructionsList;
+            return vanillaInstructions.Append(new CodeInstruction(OpCodes.Ret));
         }
 
         [HarmonyPatch(typeof(PatchFlowermanAI))]
@@ -230,8 +224,6 @@ namespace PathfindingLagFix.Patches
                 return null;
             }
 
-            var instructionsList = instructions.ToList();
-
             var vanillaInstructions = PatchFlowermanAI.NoPlayerToTargetInstructions;
             var nodeVar = PatchFlowermanAI.NoPlayerToTargetNodeVar;
             PatchFlowermanAI.NoPlayerToTargetInstructions = null;
@@ -247,11 +239,7 @@ namespace PathfindingLagFix.Patches
 
             vanillaInstructions.TransferLabelsAndVariables(generator);
 
-            var returnInstruction = instructionsList.FindIndex(insn => insn.opcode == OpCodes.Ret);
-            instructionsList.RemoveRange(0, returnInstruction);
-            instructionsList.InsertRange(0, vanillaInstructions);
-
-            return instructionsList;
+            return vanillaInstructions.Append(new CodeInstruction(OpCodes.Ret));
         }
     }
 }
