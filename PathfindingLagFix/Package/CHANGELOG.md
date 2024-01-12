@@ -1,3 +1,6 @@
+## Version 1.1.0
+- Fixed stutters that would happen when spore lizards run from the player
+
 ## Version 1.0.1
 - Removed printing of the FlowermanAI.DoAIInterval() bytecode
 
