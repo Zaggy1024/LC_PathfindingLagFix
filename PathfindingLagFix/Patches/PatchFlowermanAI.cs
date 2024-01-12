@@ -184,17 +184,11 @@ namespace PathfindingLagFix.Patches
         static IEnumerable<CodeInstruction> PatchFlowermanAI_FinishChoosingPlayerEvasionLocationTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
         {
             if (PatchFlowermanAI.AvoidClosestPlayerInstructions == null)
-            {
-                Plugin.Instance.Logger.LogError("Code was not copied from FlowermanAI.AvoidPlayerTarget().");
-                return null;
-            }
+                throw Common.PatchError("Code was not copied from FlowermanAI.AvoidPlayerTarget()", PatchFlowermanAI.PATCH_NAME);
 
             var vanillaInstructions = PatchFlowermanAI.AvoidClosestPlayerInstructions.ToArray();
             if (!vanillaInstructions[0].IsLdloc())
-            {
-                Plugin.Instance.Logger.LogError("Copied code from FlowermanAI.AvoidPlayerTarget() does not begin with an ldloc.");
-                return null;
-            }
+                throw Common.PatchError("Copied code from FlowermanAI.AvoidPlayerTarget() does not begin with an ldloc", PatchFlowermanAI.PATCH_NAME);
             var vanillaNodeVar = (LocalBuilder)vanillaInstructions[0].operand;
 
             for (var i = 0; i < vanillaInstructions.Length; i++)
@@ -216,15 +210,9 @@ namespace PathfindingLagFix.Patches
         static IEnumerable<CodeInstruction> PatchFlowermanAI_FinishChoosingFarthestNodeFromEntranceTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
         {
             if (PatchFlowermanAI.NoPlayerToTargetNodeVar == -1)
-            {
-                Plugin.Instance.Logger.LogError("Target node variable was not found in DoAIInterval().");
-                return null;
-            }
+                throw Common.PatchError("Target node variable was not found in DoAIInterval()", PatchFlowermanAI.PATCH_NAME);
             if (PatchFlowermanAI.NoPlayerToTargetInstructions == null)
-            {
-                Plugin.Instance.Logger.LogError("Code was not copied from DoAIInterval().");
-                return null;
-            }
+                throw Common.PatchError("Code was not copied from DoAIInterval()", PatchFlowermanAI.PATCH_NAME);
 
             var vanillaInstructions = PatchFlowermanAI.NoPlayerToTargetInstructions;
             var nodeVar = PatchFlowermanAI.NoPlayerToTargetNodeVar;

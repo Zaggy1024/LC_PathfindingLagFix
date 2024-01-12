@@ -114,6 +114,11 @@ namespace PathfindingLagFix.Patches
             return ((LocalBuilder)instruction.operand).LocalIndex;
         }
 
+        public static Exception PatchError(string message, string patchName)
+        {
+            return new Exception($"{message}, {patchName} may not be supported on this game version");
+        }
+
         public static Exception StubError(string name, string patchName)
         {
             return new NotSupportedException($"{name} stub was called, {patchName} may not be supported on this game version");
