@@ -103,9 +103,9 @@ namespace PathfindingLagFix.Patches
         }
     }
 
+    [HarmonyPatch(typeof(PatchPufferAI))]
     internal class PatchCopyVanillaPufferCode
     {
-        [HarmonyPatch(typeof(PatchPufferAI))]
         [HarmonyPatch(nameof(PatchPufferAI.FinishChoosingPlayerEvasionLocation))]
         [HarmonyTranspiler]
         static IEnumerable<CodeInstruction> PatchPufferAI_FinishChoosingPlayerEvasionLocationTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)

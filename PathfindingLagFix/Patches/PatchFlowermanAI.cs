@@ -176,9 +176,9 @@ namespace PathfindingLagFix.Patches
         }
     }
 
+    [HarmonyPatch(typeof(PatchFlowermanAI))]
     internal class PatchCopyVanillaFlowermanCode
     {
-        [HarmonyPatch(typeof(PatchFlowermanAI))]
         [HarmonyPatch(nameof(PatchFlowermanAI.FinishChoosingPlayerEvasionLocation))]
         [HarmonyTranspiler]
         static IEnumerable<CodeInstruction> PatchFlowermanAI_FinishChoosingPlayerEvasionLocationTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
@@ -204,7 +204,6 @@ namespace PathfindingLagFix.Patches
             return vanillaInstructions.Append(new CodeInstruction(OpCodes.Ret));
         }
 
-        [HarmonyPatch(typeof(PatchFlowermanAI))]
         [HarmonyPatch(nameof(PatchFlowermanAI.FinishChoosingFarthestNodeFromEntrance))]
         [HarmonyTranspiler]
         static IEnumerable<CodeInstruction> PatchFlowermanAI_FinishChoosingFarthestNodeFromEntranceTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
