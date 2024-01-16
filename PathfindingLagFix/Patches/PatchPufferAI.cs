@@ -67,7 +67,7 @@ namespace PathfindingLagFix.Patches
                 insn => insn.Calls(Reflection.m_EnemyAI_ChooseFarthestNodeFromPosition),
                 insn => insn.IsStloc(),
             });
-            AvoidClosestPlayerInstructions = instructionsList.GetRange(chooseFarthestNode.End, instructionsList.Count() - chooseFarthestNode.End);
+            AvoidClosestPlayerInstructions = instructionsList.IndexRangeView(chooseFarthestNode.End, instructionsList.Count()).ToList();
 
             var noCurrentSearchRoutineLabel = generator.DefineLabel();
             var alreadyRunningCoroutineLabel = generator.DefineLabel();

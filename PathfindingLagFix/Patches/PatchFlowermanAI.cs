@@ -75,10 +75,10 @@ namespace PathfindingLagFix.Patches
             });
 
             NoPlayerToTargetNodeVar = instructionsList[chooseFarTarget.End - 1].GetLocalIndex();
-            NoPlayerToTargetInstructions = instructionsList.GetRange(chooseFarTarget.End, afterNoPlayerTarget - chooseFarTarget.End);
+            NoPlayerToTargetInstructions = instructionsList.IndexRangeView(chooseFarTarget.End, afterNoPlayerTarget).ToList();
 
             var chooseFarTargetLabels = instructionsList[chooseFarTarget.Start].labels.ToArray();
-            instructionsList.RemoveRange(chooseFarTarget.Start, afterNoPlayerTarget - chooseFarTarget.Start);
+            instructionsList.RemoveIndexRange(chooseFarTarget.Start, afterNoPlayerTarget);
 
             var skipSearchCoroutineLabel = generator.DefineLabel();
             instructionsList[chooseFarTarget.Start].labels.Add(skipSearchCoroutineLabel);
@@ -153,7 +153,7 @@ namespace PathfindingLagFix.Patches
                 insn => insn.IsStloc(),
             });
             var returnInstruction = instructionsList.FindLastIndex(insn => insn.opcode == OpCodes.Ret);
-            AvoidClosestPlayerInstructions = instructionsList.GetRange(chooseFarTarget.End, returnInstruction - chooseFarTarget.End);
+            AvoidClosestPlayerInstructions = instructionsList.IndexRangeView(chooseFarTarget.End, returnInstruction).ToList();
 
             var skipSearchCoroutineLabel = generator.DefineLabel();
             return new CodeInstruction[]

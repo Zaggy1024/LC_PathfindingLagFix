@@ -65,6 +65,27 @@ namespace PathfindingLagFix.Patches
             return FindIndexOfSequence(list, 0, -1, predicates);
         }
 
+        public static IEnumerable<T> IndexRangeView<T>(this List<T> list, int start, int end)
+        {
+            for (int i = start; i < end; i++)
+                yield return list[i];
+        }
+
+        public static IEnumerable<T> IndexRangeView<T>(this List<T> list, SequenceMatch range)
+        {
+            return list.IndexRangeView(range.Start, range.End);
+        }
+
+        public static void RemoveIndexRange<T>(this List<T> list, int start, int end)
+        {
+            list.RemoveRange(start, end - start);
+        }
+
+        public static void RemoveIndicesRange<T>(this List<T> list, SequenceMatch range)
+        {
+            list.RemoveIndexRange(range.Start, range.End);
+        }
+
         public static void TransferLabelsAndVariables(this IEnumerable<CodeInstruction> instructions, ILGenerator generator)
         {
             var localDict = new Dictionary<LocalBuilder, LocalBuilder>();
