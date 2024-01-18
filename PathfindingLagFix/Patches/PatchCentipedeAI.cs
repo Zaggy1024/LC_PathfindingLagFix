@@ -25,7 +25,6 @@ namespace PathfindingLagFix.Patches
 
         static IEnumerator ChooseFarthestNodeFromEntrance(CentipedeAI centipede, Vector3 position, bool avoidLineOfSight, int offset)
         {
-            Plugin.Instance.Logger.LogInfo("---------- Starting injected coroutine! ----------");
             var farthestNodeCoroutine = Coroutines.ChooseFarthestNodeFromPosition(centipede, position, avoidLineOfSight, offset);
             Transform lastTransform = null;
             while (farthestNodeCoroutine.MoveNext())
@@ -35,7 +34,6 @@ namespace PathfindingLagFix.Patches
                 yield return null;
             }
 
-            Plugin.Instance.Logger.LogInfo("---------- Ending injected coroutine! ----------");
             centipede.searchCoroutine = null;
 
             if (farthestNodeCoroutine.Current == null)
