@@ -1,5 +1,5 @@
 # PathfindingLagFix
-This modifies the Bracken AI (and others soon) to prevent it from causing a large stutter every 200ms in some situations, by spreading the load of checking hundreds of paths over multiple frames.
+This modifies the Bracken, Snare Flea and Spore Lizard AI to prevent large stutters that can occur every 200ms in some situations, by spreading the load of checking hundreds of paths over multiple frames.
 
 ## Details
 - The EnemyAI.ChooseFarthestNodeFromPosition() function could end up checking 180+ nav mesh nodes for accessibility, if most or none of them were accessible. This could happen if the enemy was not on the nav mesh, or if the function call required line of sight and players were blocking most of the map from access. The following cases have been patched:
