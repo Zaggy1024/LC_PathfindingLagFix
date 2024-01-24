@@ -7,3 +7,8 @@ This modifies the Bracken AI (and others soon) to prevent it from causing a larg
     - The Spore Lizard also uses the same function to check for a path away from the player out of line of sight.
     - The Snare Flea searches for a location far from the main door if no players are targetable. This check could take some time even under normal circumstances due to trying to find a node midway through the accessible nodes. It would always occur if the Snare Flea fell out of the playable area.
     - There may be other cases where this type of issue could occur. Please report any cases to investigate with steps to reproduce the lag.
+
+## Notes
+
+### FixCentipedeLag Compatibility
+This mod is an _alternative_ to FixCentipedeLag, which aims to remove the lag caused by Snare Fleas. This mod also prevents the stutters that FixCentipedeLag removes, but does so in such a way the AI's behavior should be almost completely unchanged, whereas FixCentipedeLag will kill Snare Fleas almost instantly if no players are inside the building where Snare Fleas can target them.
