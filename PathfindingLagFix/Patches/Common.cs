@@ -228,14 +228,15 @@ namespace PathfindingLagFix.Patches
             while (instructionIndex >= 0)
             {
                 var instruction = instructions[instructionIndex];
+                var pushes = instruction.PushCount();
+
+                if (end == -1 && stackPosition == startIndex && pushes > 0)
+                    end = instructionIndex + 1;
+
                 stackPosition += instruction.PushCount();
                 stackPosition -= instruction.PopCount();
 
-                if (stackPosition == startIndex && end == -1)
-                {
-                    end = instructionIndex;
-                }
-                else if (stackPosition == endIndex + 1)
+                if (stackPosition > endIndex)
                 {
                     start = instructionIndex;
                     break;
