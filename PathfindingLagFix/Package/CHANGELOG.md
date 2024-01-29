@@ -1,3 +1,6 @@
+## Version 1.2.1
+- Removed some debug spam that would happen while a Snare Flea is retreating with no target players.
+
 ## Version 1.2.0
 - Prevent stutters caused by Snare Fleas finding a far location when there are no players to target.
   - This pathfinding would always happen if a Snare Flea spawned while no players are within the building.
