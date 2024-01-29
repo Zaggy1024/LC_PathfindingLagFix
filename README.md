@@ -11,4 +11,4 @@ This modifies the Bracken, Snare Flea and Spore Lizard AI to prevent large stutt
 ## Notes
 
 ### FixCentipedeLag Compatibility
-This mod is an _alternative_ to FixCentipedeLag, which aims to remove the lag caused by Snare Fleas. This mod also prevents the stutters that FixCentipedeLag removes, but does so in such a way the AI's behavior should be almost completely unchanged, whereas FixCentipedeLag will kill Snare Fleas almost instantly if no players are inside the building where Snare Fleas can target them.
+PathfindingLagFix is an _alternative_ to FixCentipedeLag, which aims to remove the lag caused by Snare Fleas. PathfindingLagFix also prevents the stutters that FixCentipedeLag avoids, but does so in such a way that the AI's behavior should be unchanged, whereas FixCentipedeLag will kill Snare Fleas almost instantly if no players are inside the building where Snare Fleas can target them.
