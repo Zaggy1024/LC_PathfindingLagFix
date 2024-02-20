@@ -1,8 +1,5 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.8.34330.188
-MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PathfindingLagFix", "PathfindingLagFix\PathfindingLagFix.csproj", "{FEDB984B-16AE-458C-B2CC-19590627C578}"
 EndProject
 Global
@@ -15,11 +12,5 @@ Global
 		{FEDB984B-16AE-458C-B2CC-19590627C578}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FEDB984B-16AE-458C-B2CC-19590627C578}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FEDB984B-16AE-458C-B2CC-19590627C578}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {FC4CF59F-3299-4EA6-BCDC-E5DFFB972430}
 	EndGlobalSection
 EndGlobal
