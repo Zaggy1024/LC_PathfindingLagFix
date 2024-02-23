@@ -40,12 +40,15 @@ namespace PathfindingLagFix.Utilities
             float3 startPos, float3 endPos,
             NativeSlice<PolygonId> path, int pathSize,
             NativeArray<NavMeshLocation> straightPath,
-            NativeArray<int> straightPathCount)
+            out int straightPathCount)
         {
+            straightPathCount = 0;
+
             if (!query.IsValid(path[0]))
                 return PathQueryStatus.Failure;
 
-            straightPath[0] = query.CreateLocation(startPos, path[0]);
+            var lastCorner = query.CreateLocation(startPos, path[0]);
+            straightPath[0] = lastCorner;
 
             var apexIndex = 0;
             var n = 1;
@@ -92,11 +95,11 @@ namespace PathfindingLagFix.Utilities
                         var polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
                         var termPos = polyLocalToWorld.MultiplyPoint(apex + left);
 
-                        n = RetracePortals(query, apexIndex, leftIndex, path, n, termPos, ref straightPath);
+                        RetracePortals(query, apexIndex, leftIndex, path, ref n, termPos, ref lastCorner, straightPath);
 
                         if (n == MAX_STRAIGHT_PATH)
                         {
-                            straightPathCount[0] = n;
+                            straightPathCount = n;
                             return PathQueryStatus.Success | PathQueryStatus.OutOfNodes;
                         }
 
@@ -111,11 +114,11 @@ namespace PathfindingLagFix.Utilities
                         var polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
                         var termPos = polyLocalToWorld.MultiplyPoint(apex + right);
 
-                        n = RetracePortals(query, apexIndex, rightIndex, path, n, termPos, ref straightPath);
+                        RetracePortals(query, apexIndex, rightIndex, path, ref n, termPos, ref lastCorner, straightPath);
 
                         if (n == MAX_STRAIGHT_PATH)
                         {
-                            straightPathCount[0] = n;
+                            straightPathCount = n;
                             return PathQueryStatus.Success | PathQueryStatus.OutOfNodes;
                         }
 
@@ -142,26 +145,27 @@ namespace PathfindingLagFix.Utilities
 
             // Remove the next to last if duplicate point - e.g. start and end positions are the same
             // (in which case we have get a single point)
-            if (n > 0 && (straightPath[n - 1].position == (Vector3)endPos))
+            if (n > 0 && (lastCorner.position == (Vector3)endPos))
                 n--;
 
-            n = RetracePortals(query, apexIndex, pathSize - 1, path, n, endPos, ref straightPath);
+            RetracePortals(query, apexIndex, pathSize - 1, path, ref n, endPos, ref lastCorner, straightPath);
 
             if (n == MAX_STRAIGHT_PATH)
             {
-                straightPathCount[0] = n;
+                straightPathCount = n;
                 return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
             }
 
-            straightPathCount[0] = n;
+            straightPathCount = n;
             return PathQueryStatus.Success;
         }
 
         // Retrace portals between corners and register if type of polygon changes
-        private static int RetracePortals(NavMeshQuery query,
+        private static void RetracePortals(NavMeshQuery query,
             int startIndex, int endIndex,
-            NativeSlice<PolygonId> path, int n, float3 termPos,
-            ref NativeArray<NavMeshLocation> straightPath)
+            NativeSlice<PolygonId> path, ref int n, float3 termPos,
+            ref NavMeshLocation lastCorner,
+            NativeArray<NavMeshLocation> straightPath)
         {
             for (var k = startIndex; k < endIndex - 1; ++k)
             {
@@ -170,15 +174,16 @@ namespace PathfindingLagFix.Utilities
                 if (type1 != type2)
                 {
                     query.GetPortalPoints(path[k], path[k + 1], out var l, out var r);
-                    SegmentSegmentCPA(out float3 cpa1, out float3 _, l, r, straightPath[n - 1].position, termPos);
-                    straightPath[n] = query.CreateLocation(cpa1, path[k + 1]);
+                    SegmentSegmentCPA(out float3 cpa1, out float3 _, l, r, lastCorner.position, termPos);
+                    lastCorner = query.CreateLocation(cpa1, path[k + 1]);
+                    straightPath[n] = lastCorner;
 
                     if (++n == MAX_STRAIGHT_PATH)
-                        return MAX_STRAIGHT_PATH;
+                        return;
                 }
             }
-            straightPath[n] = query.CreateLocation(termPos, path[endIndex]);
-            return n + 1;
+            lastCorner = query.CreateLocation(termPos, path[endIndex]);
+            straightPath[n++] = lastCorner;
         }
 
         // Calculate the closest point of approach for line-segment vs line-segment.

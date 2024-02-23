@@ -1,209 +1,180 @@
-﻿using System;
+﻿//#define DRAW_LINES
+
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
 using PathfindingLagFix.Utilities;
+using HarmonyLib;
 
 namespace PathfindingLagFix.Patches
 {
     public static class Coroutines
     {
-        private const bool DEBUG_JOB = false;
         private const int LINE_OF_SIGHT_LAYER_MASK = 0x40000;
-        private const bool USE_POOL = true;
-        private const bool USE_CACHE = true;
+        private const float MAX_ORIGIN_DISTANCE = 5;
         private const float MAX_ENDPOINT_DISTANCE = 1.5f;
         private const float MAX_ENDPOINT_DISTANCE_SQR = MAX_ENDPOINT_DISTANCE * MAX_ENDPOINT_DISTANCE;
 
-        private static readonly Vector3 NodeSearchRange = new Vector3(5, 5, 5);
         private static readonly NavMeshQueryPool QueryPool = new(256);
-
-        private static readonly IDMap<JobCache> EnemyJobCaches = new(5);
-
-        struct JobCache
-        {
-            private NavMeshQuery[] queries;
-            private FindPathToNodeJob[] jobs;
-            private JobHandle[] jobHandles;
-
-            public (NavMeshQuery[], FindPathToNodeJob[], JobHandle[]) Get(int count)
-            {
-                if (queries is null || queries.Length < count)
-                {
-                    queries = new NavMeshQuery[count];
-                    jobs = new FindPathToNodeJob[count];
-                    jobHandles = new JobHandle[count];
-                }
-                return (queries, jobs, jobHandles);
-            }
-        }
+        private static readonly CapacityArray<Transform> NodeArray = new();
+        private static readonly CapacityArray<float> NodeDistanceArray = new();
+        private static readonly IDMap<FindPathToNodeJob> EnemyPathfindingJobs = new();
 
         //[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
-        struct FindPathToNodeJob : IJob
+        struct FindPathToNodeJob : IJobParallelFor
         {
-            [ReadOnly] internal int Index;
+            [ReadOnly] internal int AgentTypeID;
+            [ReadOnly] internal int AreaMask;
             [ReadOnly] internal Vector3 Origin;
-            [ReadOnly] internal Vector3 Destination;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<Vector3> Destinations;
 
-            internal NavMeshQuery Query;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<NavMeshQuery> Queries;
 
-            internal NativeArray<PathQueryStatus> Status;
-            internal NativeArray<NavMeshLocation> Path;
-            internal NativeArray<int> PathSize;
+            [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<PathQueryStatus> Statuses;
+            [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshLocation> Paths;
+            [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> PathSizes;
 
-            internal FindPathToNodeJob(bool valid, int index, NavMeshQuery query, Vector3 origin, Vector3 destination)
+            public FindPathToNodeJob Initialize(int agentTypeID, int areaMask, Vector3 origin, NativeArray<NavMeshQuery> queries, NativeArray<Vector3> destinations)
             {
-                Index = index;
-
+                AgentTypeID = agentTypeID;
+                AreaMask = areaMask;
                 Origin = origin;
-                Destination = destination;
-                Query = query;
+                Destinations = destinations;
+                Queries = queries;
 
-                Status = new(new PathQueryStatus[] { valid ? PathQueryStatus.InProgress : PathQueryStatus.Failure }, Allocator.TempJob);
-                Path = new NativeArray<NavMeshLocation>(Pathfinding.MAX_PATH_SIZE, Allocator.TempJob);
-                PathSize = new(new int[] { 0 }, Allocator.TempJob);
+                var count = Queries.Length;
+                if (Statuses.Length >= count)
+                    return this;
+                if (Statuses.IsCreated)
+                {
+                    Statuses.Dispose();
+                    Paths.Dispose();
+                    PathSizes.Dispose();
+                }
+                Statuses = new(count, Allocator.Persistent);
+                Paths = new(count * Pathfinding.MAX_STRAIGHT_PATH, Allocator.Persistent);
+                PathSizes = new(count, Allocator.Persistent);
+
+                return this;
             }
 
-            public void Execute()
+            public NativeArray<NavMeshLocation> GetPath(int index)
             {
-                if (Status[0].GetStatus() != PathQueryStatus.InProgress)
+                return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, Pathfinding.MAX_STRAIGHT_PATH);
+            }
+
+            public void Execute(int index)
+            {
+                var query = Queries[index];
+                var originExtents = new Vector3(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
+                var origin = query.MapLocation(Origin, originExtents, AgentTypeID, AreaMask);
+
+                if (!query.IsValid(origin.polygon))
+                {
+                    Statuses[index] = PathQueryStatus.Failure;
                     return;
+                }
+
+                var destination = Destinations[index];
+                var destinationExtents = new Vector3(MAX_ENDPOINT_DISTANCE, MAX_ENDPOINT_DISTANCE, MAX_ENDPOINT_DISTANCE);
+                var destinationLocation = query.MapLocation(destination, destinationExtents, AgentTypeID, AreaMask);
+                if (!query.IsValid(destinationLocation))
+                {
+                    Statuses[index] = PathQueryStatus.Failure;
+                    return;
+                }
+                
+                query.BeginFindPath(origin, destinationLocation, AreaMask);
 
                 PathQueryStatus status = PathQueryStatus.InProgress;
                 while (status.GetStatus() == PathQueryStatus.InProgress)
-                {
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-                    status = Query.UpdateFindPath(int.MaxValue, out int _);
-                    stopwatch.Stop();
-                }
+                    status = query.UpdateFindPath(int.MaxValue, out int _);
 
                 if (status.GetStatus() != PathQueryStatus.Success)
                 {
-                    if (DEBUG_JOB)
-                        Plugin.Instance.Logger.LogInfo($"{Index} ({status}): Failed FindPath.");
-                    Status[0] = status;
+                    Statuses[index] = status;
                     return;
                 }
 
                 var pathNodes = new NativeArray<PolygonId>(Pathfinding.MAX_PATH_SIZE, Allocator.Temp);
-                status = Query.EndFindPath(out var pathNodesSize);
-                Query.GetPathResult(pathNodes);
+                status = query.EndFindPath(out var pathNodesSize);
+                query.GetPathResult(pathNodes);
 
-                var straightPathStatus = Pathfinding.FindStraightPath(Query, Origin, Destination, pathNodes, pathNodesSize, Path, PathSize);
+                var straightPathStatus = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPath(index), out var pathSize);
+                PathSizes[index] = pathSize;
                 pathNodes.Dispose();
 
                 if (straightPathStatus.GetStatus() != PathQueryStatus.Success)
                 {
-                    if (DEBUG_JOB)
-                        Plugin.Instance.Logger.LogInfo($"{Index} ({status}, {straightPathStatus}): Failed FindStraightPath.");
-                    Status[0] = status;
+                    Statuses[index] = status;
                     return;
                 }
 
                 // Check if the end of the path is close enough to the target.
-                var distance = (Path[PathSize[0] - 1].position - Destination).sqrMagnitude;
+                var endPosition = GetPath(index)[pathSize - 1].position;
+                var distance = (endPosition - destination).sqrMagnitude;
                 if (distance > MAX_ENDPOINT_DISTANCE_SQR)
                 {
-                    if (DEBUG_JOB)
-                        Plugin.Instance.Logger.LogInfo($"{Index} ({status}, {straightPathStatus}): Destination is too far away at {distance}m.");
-                    Status[0] = PathQueryStatus.Failure;
+                    Statuses[index] = PathQueryStatus.Failure;
                     return;
                 }
 
-                if (DEBUG_JOB)
-                    Plugin.Instance.Logger.LogInfo($"{Index} ({status}, {straightPathStatus}): Success with {(Path[0].polygon.IsNull() ? "null" : "created path")}.");
-                Status[0] = PathQueryStatus.Success;
+                Statuses[index] = PathQueryStatus.Success;
+            }
+
+            internal void Dispose()
+            {
+                Destinations.Dispose();
+                QueryPool.Free(Queries);
+                Queries.Dispose();
             }
         }
 
-        static void Dispose(this FindPathToNodeJob job)
-        {
-            job.Status.Dispose();
-            job.Path.Dispose();
-            job.PathSize.Dispose();
-        }
-
-        private static (NavMeshQuery[], FindPathToNodeJob[], JobHandle[]) CreatePathfindingJobs(EnemyAI enemy, Transform[] candidates)
+        private static (FindPathToNodeJob job, JobHandle jobHandle) CreatePathfindingJob(EnemyAI enemy, Transform[] candidates, int count)
         {
             var agent = enemy.agent;
 
-            if (!agent.isOnNavMesh || !agent.FindClosestEdge(out var agentNavMeshHit))
-            {
-                Plugin.Instance.Logger.LogInfo($"Agent is not on the navmesh.");
+            if (!agent.isOnNavMesh)
                 return default;
-            }
 
-            var agentTypeID = agent.agentTypeID;
-            var areaMask = agent.areaMask;
+            var position = enemy.transform.position;
 
-            var count = candidates.Length;
+            var queries = new NativeArray<NavMeshQuery>(count, Allocator.TempJob);
+            QueryPool.Take(queries);
 
-            NavMeshQuery[] queries;
-            FindPathToNodeJob[] jobs;
-            JobHandle[] jobHandles;
-
-            if (USE_CACHE)
-            {
-                (queries, jobs, jobHandles) = EnemyJobCaches[enemy.thisEnemyIndex].Get(count);
-            }
-            else
-            {
-                queries = new NavMeshQuery[count];
-                jobs = new FindPathToNodeJob[count];
-                jobHandles = new JobHandle[count];
-            }
-
-
-            if (USE_POOL)
-            {
-                QueryPool.Take(queries);
-            }
-            else
-            {
-                var world = NavMeshWorld.GetDefaultWorld();
-                for (int i = 0; i < count; i++)
-                    queries[i] = new NavMeshQuery(world, Allocator.TempJob, Pathfinding.MAX_PATH_SIZE);
-            }
-
-            var origin = queries[0].MapLocation(agentNavMeshHit.position, NodeSearchRange, agentTypeID, areaMask);
-
-            if (!queries[0].IsValid(origin.polygon))
-            {
-                Plugin.Instance.Logger.LogError($"Path origin at {agentNavMeshHit.position} was not found in the nav mesh.");
-                QueryPool.Free(queries);
-                return default;
-            }
-
-            var allocationStopwatch = new Stopwatch();
-
+            var destinations = new NativeArray<Vector3>(count, Allocator.TempJob);
             for (int i = 0; i < count; i++)
-            {
-                var query = queries[i];
-                var destination = candidates[i].position;
-                var destinationLocation = query.MapLocation(destination, NodeSearchRange, agentTypeID, areaMask);
-                var valid = query.IsValid(destinationLocation);
-                if (valid)
-                    query.BeginFindPath(origin, destinationLocation, areaMask);
-                jobs[i] = new FindPathToNodeJob(valid, i, query, agent.transform.position, destination);
-                allocationStopwatch.Start();
-                jobHandles[i] = jobs[i].Schedule();
-                allocationStopwatch.Stop();
-            }
+                destinations[i] = candidates[i].position;
 
-            Plugin.Instance.Logger.LogInfo($"allocation took {allocationStopwatch.Elapsed.TotalMilliseconds * 1000:0.###} microseconds");
-            //Plugin.Instance.Logger.LogInfo($"Agent navmesh hit was {agentNavMeshHit.position}, chose map location at {origin.position}.");
-            return (queries, jobs, jobHandles);
+            var job = EnemyPathfindingJobs[enemy.thisEnemyIndex].Initialize(agent.agentTypeID, agent.areaMask, position, queries, destinations);
+            var jobHandle = job.Schedule(count, 1);
+            return (job, jobHandle);
         }
 
-        private static int lastFramePrinted = 0;
-        private const int printInterval = 165;
-        private static bool print = false;
+        /*[HarmonyPostfix]
+        [HarmonyPatch(typeof(Coroutines), nameof(ChooseFarthestNodeFromPosition))]
+        public static IEnumerator<Transform> Profiler(IEnumerator<Transform> __result, EnemyAI enemy)
+        {
+            int i = 0;
+            while (true)
+            {
+                var startTime = Time.realtimeSinceStartupAsDouble;
+                var hasNext = __result.MoveNext();
+                var runTime = Time.realtimeSinceStartupAsDouble - startTime;
+                Plugin.Instance.Logger.LogInfo($"Iteration {i} of {enemy.name}: {runTime * 1_000_000} microseconds");
+                if (!hasNext)
+                    yield break;
+                yield return __result.Current;
+                i++;
+            }
+        }*/
 
         public static IEnumerator<Transform> ChooseFarthestNodeFromPosition(EnemyAI enemy, Vector3 pos, bool avoidLineOfSight = false, int offset = 0)
         {
@@ -212,16 +183,16 @@ namespace PathfindingLagFix.Patches
 
             var startFrame = Time.frameCount;
 
-            if (DEBUG_JOB)
-            {
+#if DRAW_LINES
                 var colorIndex = 0;
                 foreach (var node in enemy.allAINodes)
                     UnityEngine.Debug.DrawLine(node.transform.position, node.transform.position + Vector3.up, ColorRotation[colorIndex++ % ColorRotation.Length], 0.15f);
-            }
+#endif
+
 
             var candidateCount = enemy.allAINodes.Length;
-            var candidateTransforms = new Transform[candidateCount];
-            var candidateDistances = new float[candidateCount];
+            var candidateTransforms = NodeArray.Get(candidateCount);
+            var candidateDistances = NodeDistanceArray.Get(candidateCount);
             for (int i = 0; i < candidateCount; i++)
             {
                 candidateTransforms[i] = enemy.allAINodes[i].transform;
@@ -229,40 +200,34 @@ namespace PathfindingLagFix.Patches
             }
             Array.Sort(candidateDistances, candidateTransforms, Comparer<float>.Create((a, b) => b.CompareTo(a)));
 
-            /*print = startFrame - lastFramePrinted > printInterval;
-            if (print)
-            {
-                lastFramePrinted = startFrame;
-                Plugin.Instance.Logger.LogInfo($"Begin ChooseFarthestNodeFromPosition by {enemy.name} with {candidateCount} jobs.");
-            }*/
-
-            var (queries, jobs, jobHandles) = CreatePathfindingJobs(enemy, candidateTransforms);
-            if (jobs == null)
-                yield break;
-            //Plugin.Instance.Logger.LogInfo($"Allocated jobs and job handles.");
+            var startTime = Time.realtimeSinceStartupAsDouble;
+            var (job, jobHandle) = CreatePathfindingJob(enemy, candidateTransforms, candidateCount);
+            var runTime = Time.realtimeSinceStartupAsDouble - startTime;
+            Plugin.Instance.Logger.LogInfo($"Creating jobs took {runTime * 1_000_000} microseconds");
 
             int result = -1;
+            //var totalTime = 0d;
 
             while (result == -1)
             {
                 yield return null;
+                //startTime = Time.realtimeSinceStartupAsDouble;
                 bool complete = true;
                 var pathsLeft = offset;
                 for (int i = 0; i < candidateCount; i++)
                 {
-                    if (!jobHandles[i].IsCompleted)
+                    var status = job.Statuses[i];
+                    if (status.GetStatus() == PathQueryStatus.InProgress)
                     {
                         complete = false;
                         break;
                     }
-                    jobHandles[i].Complete();
-                    var job = jobs[i];
 
-                    if (job.Status[0].GetStatus() == PathQueryStatus.Success)
+                    if (status.GetStatus() == PathQueryStatus.Success)
                     {
-                        var path = job.Path;
-                        //if (path[0].polygon.IsNull())
-                        //    Plugin.Instance.Logger.LogWarning($"{i}: Path is null");
+                        var path = job.GetPath(i);
+                        if (path[0].polygon.IsNull())
+                            Plugin.Instance.Logger.LogWarning($"{i}: Path is null");
 
                         if (avoidLineOfSight)
                         {
@@ -291,7 +256,7 @@ namespace PathfindingLagFix.Patches
                 {
                     for (int i = 0; i < candidateCount; i++)
                     {
-                        if (jobs[i].Status[0].GetStatus() == PathQueryStatus.Success)
+                        if (job.Statuses[i].GetStatus() == PathQueryStatus.Success)
                         {
                             result = i;
                             break;
@@ -299,56 +264,36 @@ namespace PathfindingLagFix.Patches
                     }
                     break;
                 }
+                //totalTime += Time.realtimeSinceStartupAsDouble - startTime;
             }
+            //Plugin.Instance.Logger.LogInfo($"Finding final path took {totalTime * 1_000_000} microseconds, path {(result >= 0 ? "exists" : "doesn't exist")}");
 
             if (result >= 0)
             {
                 var resultTransform = candidateTransforms[result];
                 enemy.mostOptimalDistance = Vector3.Distance(pos, resultTransform.position);
-                //if (print)
-                //    Plugin.Instance.Logger.LogInfo($"Found position {resultTransform.position} with {jobs[result].PathSize[0]} path nodes in {Time.frameCount - startFrame} frames.");
                 yield return resultTransform;
             }
 
+            while (!jobHandle.IsCompleted)
+                yield return null;
+
+#if DRAW_LINES
             {
-                int i = 0;
-                while (i < candidateCount)
+                for (int i = 0; i < candidateCount; i++)
                 {
-                    yield return null;
-                    for (; i < candidateCount; i++)
+                    if (job.Statuses[i].GetStatus() == PathQueryStatus.Success)
                     {
-                        var job = jobs[i];
-                        var jobHandle = jobHandles[i];
-                        if (!jobHandle.IsCompleted)
-                            break;
-                        jobHandles[i].Complete();
-
-                        if (DEBUG_JOB && job.Status[0].GetStatus() == PathQueryStatus.Success)
-                        {
-                            var path = job.Path;
-                            var pathSize = job.PathSize[0];
-                            for (int segment = 1; segment < pathSize; segment++)
-                                UnityEngine.Debug.DrawLine(path[segment - 1].position, path[segment].position, ColorRotation[i % ColorRotation.Length], i == result ? 0.2f : 0.1f);
-                        }
-
-                        job.Dispose();
+                        var path = job.GetPath(i);
+                        var pathSize = job.PathSizes[i];
+                        for (int segment = 1; segment < pathSize; segment++)
+                            UnityEngine.Debug.DrawLine(path[segment - 1].position, path[segment].position, ColorRotation[i % ColorRotation.Length], i == result ? 0.2f : 0.1f);
                     }
-
-                    if (i == candidateCount)
-                        break;
                 }
             }
+#endif
 
-            if (USE_POOL)
-            {
-                QueryPool.Free(queries);
-            }
-            else
-            {
-                for (int queryIndex = 0; queryIndex < candidateCount; queryIndex++)
-                    queries[queryIndex].Dispose();
-            }
-            //Plugin.Instance.Logger.LogInfo($"Deallocated jobs and job handles in {Time.frameCount - startFrame} frames.");
+            job.Dispose();
         }
         private static readonly Color[] ColorRotation = [Color.red, Color.yellow, Color.green, Color.blue, Color.cyan, Color.grey];
     }

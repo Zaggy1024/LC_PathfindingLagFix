@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+
 using Unity.Collections;
 using UnityEngine.Experimental.AI;
 
@@ -7,12 +7,12 @@ namespace PathfindingLagFix.Utilities
 {
     public sealed class NavMeshQueryPool(int capacity)
     {
-        private NavMeshQuery[] freeArrays = new NavMeshQuery[capacity];
+        private NavMeshQuery[] freeQueries = new NavMeshQuery[capacity];
         private int currentIndex = 0;
 
-        public int FreeCount => freeArrays.Length;
+        public int FreeCount => currentIndex;
 
-        public void Take(NavMeshQuery[] destination)
+        public void Take(NativeArray<NavMeshQuery> destination)
         {
             var count = destination.Length;
             var copiedItemCount = 0;
@@ -21,7 +21,7 @@ namespace PathfindingLagFix.Utilities
             {
                 copiedItemCount = Math.Min(count, currentIndex);
                 currentIndex -= copiedItemCount;
-                Array.Copy(freeArrays, currentIndex, destination, 0, copiedItemCount);
+                freeQueries.AsSpan().Slice(currentIndex, copiedItemCount).CopyTo(destination);
             }
 
             for (int i = copiedItemCount; i < count; i++)
@@ -30,22 +30,28 @@ namespace PathfindingLagFix.Utilities
 
         private void GrowArray()
         {
-            var newSize = freeArrays.Length;
+            var newSize = freeQueries.Length;
             while (newSize < currentIndex)
                 newSize *= 2;
             var newBackingArray = new NavMeshQuery[newSize];
-            Array.Copy(freeArrays, newBackingArray, freeArrays.Length);
-            freeArrays = newBackingArray;
+            Array.Copy(freeQueries, newBackingArray, freeQueries.Length);
+            freeQueries = newBackingArray;
         }
 
-        public void Free(NavMeshQuery[] queries)
+        public void Free(NativeArray<NavMeshQuery> queries)
         {
             var destinationIndex = currentIndex;
             currentIndex += queries.Length;
-            if (currentIndex > freeArrays.Length)
+            if (currentIndex > freeQueries.Length)
                 GrowArray();
 
-            Array.Copy(queries, 0, freeArrays, destinationIndex, queries.Length);
+            queries.AsSpan().CopyTo(freeQueries.AsSpan().Slice(destinationIndex, queries.Length));
+        }
+
+        ~NavMeshQueryPool()
+        {
+            for (int i = 0; i < currentIndex; i++)
+                freeQueries[i].Dispose();
         }
     }
 }
