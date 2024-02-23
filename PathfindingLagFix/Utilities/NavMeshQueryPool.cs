@@ -12,16 +12,15 @@ namespace PathfindingLagFix.Utilities
 
         public int FreeCount => currentIndex;
 
-        public void Take(NativeArray<NavMeshQuery> destination)
+        public void Take(NativeArray<NavMeshQuery> destination, int count)
         {
-            var count = destination.Length;
             var copiedItemCount = 0;
 
             if (currentIndex > 0)
             {
                 copiedItemCount = Math.Min(count, currentIndex);
                 currentIndex -= copiedItemCount;
-                freeQueries.AsSpan().Slice(currentIndex, copiedItemCount).CopyTo(destination);
+                freeQueries.AsSpan().Slice(currentIndex, copiedItemCount).CopyTo(destination.AsSpan()[..count]);
             }
 
             for (int i = copiedItemCount; i < count; i++)

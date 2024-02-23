@@ -1,4 +1,4 @@
-﻿//#define DRAW_LINES
+//#define DRAW_LINES
 
 using System;
 using System.Collections.Generic;
@@ -41,28 +41,41 @@ namespace PathfindingLagFix.Patches
             [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshLocation> Paths;
             [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> PathSizes;
 
-            public FindPathToNodeJob Initialize(int agentTypeID, int areaMask, Vector3 origin, NativeArray<NavMeshQuery> queries, NativeArray<Vector3> destinations)
+            public FindPathToNodeJob Initialize(int agentTypeID, int areaMask, Vector3 origin, Transform[] candidates)
             {
                 AgentTypeID = agentTypeID;
                 AreaMask = areaMask;
                 Origin = origin;
-                Destinations = destinations;
-                Queries = queries;
 
-                var count = Queries.Length;
-                if (Statuses.Length >= count)
-                    return this;
-                if (Statuses.IsCreated)
+                var count = candidates.Length;
+                EnsureCount(count);
+
+                QueryPool.Take(Queries, count);
+                for (int i = 0; i < count; i++)
+                    Destinations[i] = candidates[i].position;
+                return this;
+            }
+
+            private void EnsureCount(int count)
+            {
+                if (Destinations.Length >= count)
+                    return;
+
+                if (Destinations.IsCreated)
                 {
+                    Destinations.Dispose();
+                    Queries.Dispose();
+
                     Statuses.Dispose();
                     Paths.Dispose();
                     PathSizes.Dispose();
                 }
+                Destinations = new(count, Allocator.Persistent);
+                Queries = new(count, Allocator.Persistent);
+
                 Statuses = new(count, Allocator.Persistent);
                 Paths = new(count * Pathfinding.MAX_STRAIGHT_PATH, Allocator.Persistent);
                 PathSizes = new(count, Allocator.Persistent);
-
-                return this;
             }
 
             public NativeArray<NavMeshLocation> GetPath(int index)
@@ -131,9 +144,7 @@ namespace PathfindingLagFix.Patches
 
             internal void Dispose()
             {
-                Destinations.Dispose();
                 QueryPool.Free(Queries);
-                Queries.Dispose();
             }
         }
 
@@ -146,14 +157,7 @@ namespace PathfindingLagFix.Patches
 
             var position = enemy.transform.position;
 
-            var queries = new NativeArray<NavMeshQuery>(count, Allocator.TempJob);
-            QueryPool.Take(queries);
-
-            var destinations = new NativeArray<Vector3>(count, Allocator.TempJob);
-            for (int i = 0; i < count; i++)
-                destinations[i] = candidates[i].position;
-
-            var job = EnemyPathfindingJobs[enemy.thisEnemyIndex].Initialize(agent.agentTypeID, agent.areaMask, position, queries, destinations);
+            var job = EnemyPathfindingJobs[enemy.thisEnemyIndex].Initialize(agent.agentTypeID, agent.areaMask, position, candidates);
             var jobHandle = job.Schedule(count, 1);
             return (job, jobHandle);
         }
@@ -189,7 +193,7 @@ namespace PathfindingLagFix.Patches
                     UnityEngine.Debug.DrawLine(node.transform.position, node.transform.position + Vector3.up, ColorRotation[colorIndex++ % ColorRotation.Length], 0.15f);
 #endif
 
-
+            var startTime = Time.realtimeSinceStartupAsDouble;
             var candidateCount = enemy.allAINodes.Length;
             var candidateTransforms = NodeArray.Get(candidateCount);
             var candidateDistances = NodeDistanceArray.Get(candidateCount);
@@ -199,10 +203,12 @@ namespace PathfindingLagFix.Patches
                 candidateDistances[i] = (pos - candidateTransforms[i].position).sqrMagnitude;
             }
             Array.Sort(candidateDistances, candidateTransforms, Comparer<float>.Create((a, b) => b.CompareTo(a)));
-
-            var startTime = Time.realtimeSinceStartupAsDouble;
-            var (job, jobHandle) = CreatePathfindingJob(enemy, candidateTransforms, candidateCount);
             var runTime = Time.realtimeSinceStartupAsDouble - startTime;
+            Plugin.Instance.Logger.LogInfo($"Sorting {candidateCount} nodes took {runTime * 1_000_000} microseconds");
+
+            startTime = Time.realtimeSinceStartupAsDouble;
+            var (job, jobHandle) = CreatePathfindingJob(enemy, candidateTransforms, candidateCount);
+            runTime = Time.realtimeSinceStartupAsDouble - startTime;
             Plugin.Instance.Logger.LogInfo($"Creating jobs took {runTime * 1_000_000} microseconds");
 
             int result = -1;
