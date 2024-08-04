@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
@@ -48,12 +48,10 @@
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     </PropertyGroup>
 
-    <PropertyGroup>
-        <PostBuildEvent>
-            mkdir $(MSBuildProjectDirectory)\Package\BepInEx\plugins
-            copy /Y $(SolutionDir)README.md $(MSBuildProjectDirectory)\Package
-            copy /Y $(OutDir)PathfindingLagFix.dll $(MSBuildProjectDirectory)\Package\BepInEx\plugins
-        </PostBuildEvent>
-    </PropertyGroup>
+    <Target Name="CopyToPackage" AfterTargets="AfterBuild">
+        <Copy SourceFiles="$(SolutionDir)LICENSE" DestinationFolder="$(MSBuildProjectDirectory)\Package" />
+        <Copy SourceFiles="$(SolutionDir)README.md" DestinationFolder="$(MSBuildProjectDirectory)\Package" />
+        <Copy SourceFiles="$(OutDir)PathfindingLagFix.dll" DestinationFolder="$(MSBuildProjectDirectory)\Package" />
+    </Target>
 
 </Project>
