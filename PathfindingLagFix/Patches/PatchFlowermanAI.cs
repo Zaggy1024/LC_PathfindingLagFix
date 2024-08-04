@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,19 +50,17 @@ namespace PathfindingLagFix.Patches
             var instructionsList = instructions.ToList();
 
             Label? noPlayerTargetLabel = null;
-            var targetPlayer = instructionsList.FindIndexOfSequence(new Predicate<CodeInstruction>[]
-            {
+            var targetPlayer = instructionsList.FindIndexOfSequence([
                 insn => insn.Calls(Reflection.m_EnemyAI_TargetClosestPlayer),
                 insn => insn.Branches(out noPlayerTargetLabel),
-            });
+            ]);
 
             var noPlayerTarget = instructionsList.FindIndex(insn => insn.labels.Contains(noPlayerTargetLabel.Value));
 
             var afterNoPlayerTargetLabel = (Label)instructionsList[noPlayerTarget - 1].operand;
             var afterNoPlayerTarget = instructionsList.FindIndex(noPlayerTarget, insn => insn.labels.Contains(afterNoPlayerTargetLabel));
 
-            var chooseFarTarget = instructionsList.FindIndexOfSequence(noPlayerTarget, new Predicate<CodeInstruction>[]
-            {
+            var chooseFarTarget = instructionsList.FindIndexOfSequence(noPlayerTarget, [
                 // Transform transform = ChooseFarthestNodeFromPosition(mainEntrancePosition);
                 insn => insn.IsLdarg(0),
                 insn => insn.IsLdarg(0),
@@ -72,7 +70,7 @@ namespace PathfindingLagFix.Patches
                 insn => insn.LoadsConstant(0),
                 insn => insn.Calls(Reflection.m_EnemyAI_ChooseFarthestNodeFromPosition),
                 insn => insn.IsStloc(),
-            });
+            ]);
 
             NoPlayerToTargetNodeVar = instructionsList[chooseFarTarget.End - 1].GetLocalIndex();
             NoPlayerToTargetInstructions = instructionsList.IndexRangeView(chooseFarTarget.End, afterNoPlayerTarget).ToList();
@@ -83,8 +81,7 @@ namespace PathfindingLagFix.Patches
             var skipSearchCoroutineLabel = generator.DefineLabel();
             instructionsList[chooseFarTarget.Start].labels.Add(skipSearchCoroutineLabel);
 
-            instructionsList.InsertRange(chooseFarTarget.Start, new CodeInstruction[]
-            {
+            instructionsList.InsertRange(chooseFarTarget.Start, [
                 // if (searchCoroutine == null)
                 //   StartCoroutine(PatchFlowermanAI.ChooseFarNodeWhenNoTarget(this, mainEntrancePosition));
                 new CodeInstruction(OpCodes.Ldarg_0).WithLabels(chooseFarTargetLabels),
@@ -96,10 +93,10 @@ namespace PathfindingLagFix.Patches
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldfld, f_FlowermanAI_mainEntrancePosition),
-                CodeInstruction.Call(typeof(PatchFlowermanAI), nameof(ChooseFarthestNodeFromEntrance), new Type[] { typeof(FlowermanAI), typeof(Vector3) }),
+                CodeInstruction.Call(typeof(PatchFlowermanAI), nameof(ChooseFarthestNodeFromEntrance), [ typeof(FlowermanAI), typeof(Vector3) ]),
                 new CodeInstruction(OpCodes.Callvirt, Reflection.m_MonoBehaviour_StartCoroutine),
                 new CodeInstruction(OpCodes.Stfld, Reflection.f_EnemyAI_searchCoroutine),
-            });
+            ]);
 
             return instructionsList;
         }
@@ -139,8 +136,7 @@ namespace PathfindingLagFix.Patches
         {
             var instructionsList = instructions.ToList();
 
-            var chooseFarTarget = instructionsList.FindIndexOfSequence(new Predicate<CodeInstruction>[]
-            {
+            var chooseFarTarget = instructionsList.FindIndexOfSequence([
                 insn => insn.IsLdarg(0),
                 insn => insn.IsLdarg(0),
                 insn => insn.LoadsField(Reflection.f_EnemyAI_targetPlayer),
@@ -151,13 +147,12 @@ namespace PathfindingLagFix.Patches
                 insn => insn.LoadsConstant(1),
                 insn => insn.Calls(Reflection.m_EnemyAI_ChooseFarthestNodeFromPosition),
                 insn => insn.IsStloc(),
-            });
+            ]);
             var returnInstruction = instructionsList.FindLastIndex(insn => insn.opcode == OpCodes.Ret);
             AvoidClosestPlayerInstructions = instructionsList.IndexRangeView(chooseFarTarget.End, returnInstruction).ToList();
 
             var skipSearchCoroutineLabel = generator.DefineLabel();
-            return new CodeInstruction[]
-            {
+            return [
                 // if (searchCoroutine == null)
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldfld, Reflection.f_EnemyAI_searchCoroutine),
@@ -167,12 +162,12 @@ namespace PathfindingLagFix.Patches
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldarg_0),
-                CodeInstruction.Call(typeof(PatchFlowermanAI), nameof(ChoosePlayerEvasionLocation), new Type[] { typeof(FlowermanAI) }),
+                CodeInstruction.Call(typeof(PatchFlowermanAI), nameof(ChoosePlayerEvasionLocation), [ typeof(FlowermanAI) ]),
                 new CodeInstruction(OpCodes.Callvirt, Reflection.m_MonoBehaviour_StartCoroutine),
                 new CodeInstruction(OpCodes.Stfld, Reflection.f_EnemyAI_searchCoroutine),
 
                 new CodeInstruction(OpCodes.Ret).WithLabels(skipSearchCoroutineLabel),
-            };
+            ];
         }
     }
 
