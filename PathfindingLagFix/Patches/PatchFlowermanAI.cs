@@ -125,6 +125,12 @@ namespace PathfindingLagFix.Patches
                 yield break;
             }
 
+            if (flowerman.targetPlayer == null)
+            {
+                Plugin.Instance.Logger.LogInfo($"Found player evasion location after a Flowerman stopped targeting them.");
+                yield break;
+            }
+
             FinishChoosingPlayerEvasionLocation(flowerman, lastTransform);
         }
 
