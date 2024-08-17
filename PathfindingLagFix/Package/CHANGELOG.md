@@ -1,3 +1,6 @@
+## Version 1.3.1
+- Updated mod icon and Thunderstore summary.
+
 ## Version 1.3.0
 - Updated to support v60/v61, removing patches for the Bracken and Spore Lizard now that vanilla uses an async method for those AI.
 
