@@ -1,6 +1,5 @@
 ## Version 1.3.0
-- Updated to support v60/v61.
-- Prevented an error from being printed if a Bracken stopped targeting a player that it was evading.
+- Updated to support v60/v61, removing patches for the Bracken and Spore Lizard now that vanilla uses an async method for those AI.
 
 ## Version 1.2.1
 - Removed some debug spam that would happen while a Snare Flea is retreating with no target players.
