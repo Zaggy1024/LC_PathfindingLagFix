@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,20 +51,18 @@ namespace PathfindingLagFix.Patches
             var instructionsList = instructions.ToList();
 
             // Find the branch where no player can be targeted.
-            var targetPlayer = instructionsList.FindIndexOfSequence(new Predicate<CodeInstruction>[]
-            {
+            var targetPlayer = instructionsList.FindIndexOfSequence([
                 insn => insn.Calls(Reflection.m_EnemyAI_TargetClosestPlayer),
                 insn => insn.opcode == OpCodes.Brtrue || insn.opcode == OpCodes.Brtrue_S,
-            });
+            ]);
 
             // Find the start and end of the branch where a hiding spot has not yet been chosen.
             // that branch contains a call to ChooseFarthestNodeFromPosition() that we want to patch.
-            var checkHasChosenHidingSpot = instructionsList.FindIndexOfSequence(new Predicate<CodeInstruction>[]
-            {
+            var checkHasChosenHidingSpot = instructionsList.FindIndexOfSequence([
                 insn => insn.IsLdarg(0),
                 insn => insn.LoadsField(f_CentipedeAI_choseHidingSpotNoPlayersNearby),
                 insn => insn.opcode == OpCodes.Brtrue || insn.opcode == OpCodes.Brtrue_S,
-            });
+            ]);
             var hasChosenHidingSpotLabel = (Label)instructionsList[checkHasChosenHidingSpot.End - 1].operand;
             var hasChosenHidingSpot = instructionsList.FindIndex(checkHasChosenHidingSpot.End, insn => insn.labels.Contains(hasChosenHidingSpotLabel)) - 1;
 
@@ -90,19 +88,18 @@ namespace PathfindingLagFix.Patches
 
             // if (searchCoroutine == null)
             //   searchCoroutine = StartCoroutine(ChooseFarthestNodeFromEntrance(...));
-            var instructionsToInsert = new CodeInstruction[]
-            {
-                new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Ldfld, Reflection.f_EnemyAI_searchCoroutine),
-                new CodeInstruction(OpCodes.Brtrue_S, hasChosenHidingSpotLabel),
-                new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Ldarg_0),
+            var instructionsToInsert = new CodeInstruction[] {
+                new(OpCodes.Ldarg_0),
+                new(OpCodes.Ldfld, Reflection.f_EnemyAI_searchCoroutine),
+                new(OpCodes.Brtrue_S, hasChosenHidingSpotLabel),
+                new(OpCodes.Ldarg_0),
+                new(OpCodes.Ldarg_0),
             }.Concat(chooseFarthestNodeParametersInstructions)
-            .Concat(new CodeInstruction[] {
-                CodeInstruction.Call(typeof(PatchCentipedeAI), nameof(ChooseFarthestNodeFromEntrance), new Type[] { typeof(CentipedeAI), typeof(Vector3), typeof(bool), typeof(int) }),
-                new CodeInstruction(OpCodes.Call, Reflection.m_MonoBehaviour_StartCoroutine),
-                new CodeInstruction(OpCodes.Stfld, Reflection.f_EnemyAI_searchCoroutine),
-            });
+            .Concat([
+                CodeInstruction.Call(typeof(PatchCentipedeAI), nameof(ChooseFarthestNodeFromEntrance), [ typeof(CentipedeAI), typeof(Vector3), typeof(bool), typeof(int) ]),
+                new(OpCodes.Call, Reflection.m_MonoBehaviour_StartCoroutine),
+                new(OpCodes.Stfld, Reflection.f_EnemyAI_searchCoroutine),
+            ]);
 
             instructionsList.InsertRange(checkHasChosenHidingSpot.End, instructionsToInsert);
             return instructionsList;
