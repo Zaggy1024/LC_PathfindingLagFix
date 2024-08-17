@@ -1,6 +1,6 @@
 {
     "name": "PathfindingLagFix",
-    "version_number": "1.2.1",
+    "version_number": "1.3.0",
     "website_url": "https://github.com/Zaggy1024/LC_PathfindingLagFix/",
     "description": "Lethal Company mod to fix stutters caused by the AI of Brackens, Spore Lizards, and Snare Fleas.",
     "dependencies": [
