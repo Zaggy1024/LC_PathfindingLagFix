@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 
@@ -21,12 +21,6 @@ namespace PathfindingLagFix
         public void Awake()
         {
             Instance = this;
-
-            harmony.PatchAll(typeof(PatchFlowermanAI));
-            harmony.PatchAll(typeof(PatchCopyVanillaFlowermanCode));
-
-            harmony.PatchAll(typeof(PatchPufferAI));
-            harmony.PatchAll(typeof(PatchCopyVanillaPufferCode));
 
             harmony.PatchAll(typeof(PatchCentipedeAI));
             harmony.PatchAll(typeof(PatchCopyVanillaCentipedeCode));
