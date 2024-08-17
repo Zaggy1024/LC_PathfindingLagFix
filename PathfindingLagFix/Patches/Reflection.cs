@@ -1,4 +1,3 @@
-﻿using System;
 using System.Collections;
 using System.Reflection;
 
@@ -8,7 +7,7 @@ namespace PathfindingLagFix.Patches
 {
     public static class Reflection
     {
-        public static readonly MethodInfo m_Debug_Log = typeof(UnityEngine.Debug).GetMethod("Log", [ typeof(object) ]);
+        public static readonly MethodInfo m_Debug_Log = typeof(Debug).GetMethod("Log", [ typeof(object) ]);
 
         public static readonly MethodInfo m_EnemyAI_DoAIInterval = typeof(EnemyAI).GetMethod(nameof(EnemyAI.DoAIInterval), []);
         public static readonly MethodInfo m_EnemyAI_TargetClosestPlayer = typeof(EnemyAI).GetMethod(nameof(EnemyAI.TargetClosestPlayer), [ typeof(float), typeof(bool), typeof(float) ]);
@@ -27,6 +26,6 @@ namespace PathfindingLagFix.Patches
 
         public static readonly MethodInfo m_Transform_get_position = typeof(Transform).GetMethod("get_position", []);
 
-        public static readonly MethodInfo m_Object_op_Equality = typeof(UnityEngine.Object).GetMethod("op_Equality", [ typeof(UnityEngine.Object), typeof(UnityEngine.Object) ]);
+        public static readonly MethodInfo m_Object_op_Equality = typeof(Object).GetMethod("op_Equality", [ typeof(Object), typeof(Object) ]);
     }
 }
