@@ -69,7 +69,7 @@ namespace PathfindingLagFix.Patches
             var chooseFarthestNodeCall = instructionsList.FindIndex(checkHasChosenHidingSpot.End, insn => insn.Calls(Reflection.m_EnemyAI_ChooseFarthestNodeFromPosition));
             if (chooseFarthestNodeCall >= hasChosenHidingSpot)
                 throw new Exception("Unexpected ordering of instructions in CentipedeAI.DoAIInterval().");
-            var chooseFarthestNodeParameters = instructionsList.InstructionRangeForStackItems(chooseFarthestNodeCall, 1, 4);
+            var chooseFarthestNodeParameters = instructionsList.InstructionRangeForStackItems(chooseFarthestNodeCall, 3, 6);
 
             // Extract all instructions in the branch other than the direct call to ChooseFarthestNodeFromPosition().
             // We will use these to fill the stub that is called after a node has been chosen.
