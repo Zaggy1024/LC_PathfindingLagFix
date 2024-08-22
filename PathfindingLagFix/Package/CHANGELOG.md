@@ -1,3 +1,6 @@
+## Version 1.4.0
+- Brought back the patch for lag caused when the Bracken has no player target and is therefore pathing to the furthest position from the interior entrance. This would often occur when the player jumps.
+
 ## Version 1.3.1
 - Updated mod icon and Thunderstore summary.
 

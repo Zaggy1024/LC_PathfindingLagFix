@@ -5,12 +5,11 @@ Originally, it was designed to address lag that the Bracken could cause, which h
 
 ## Details
 - The EnemyAI.ChooseFarthestNodeFromPosition() function could end up checking 180+ nav mesh nodes for accessibility, if most or none of them were accessible. This could happen if the enemy was not on the nav mesh, or if the function call required line of sight and players were blocking most of the map from access. The following cases have been patched:
+    - When the Bracken cannot target a player, either due to them being outside or being mid-air making a jump in the interior, it will try to path to the farthest position from the entrance. This could cause a large stutter on maps with a lot of inaccessible nodes.
     - The Snare Flea searches for a location far from the main door if no players are targetable. This check could take some time even under normal circumstances due to trying to find a node midway through the accessible nodes. It would always occur if the Snare Flea fell out of the playable area.
     - There may be other cases where this type of issue could occur. Please report any cases to investigate with steps to reproduce the lag.
 
-Historically, this mod was originally created to prevent these cases as well, which have since been patched in the vanilla game:
-    - This would occur for the Bracken if it spawned outside, since it has no outside nodes, or if the bracken was blocked from pathing to most positions due to players' lines of sight.
-    - The Spore Lizard also uses the function mentioned above to check for a path away from the player out of line of sight.
+Historically, this mod also contained patches to prevent Brackens and Spore Lizards from causing lag when retreating from a player while blocked from most positions by players' lines of sight. Those issues have since been patched in the vanilla game.
 
 ## Notes
 
