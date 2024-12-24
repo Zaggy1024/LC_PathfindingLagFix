@@ -22,6 +22,14 @@
             <HintPath>..\..\Libraries\Assembly-CSharp.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Unity.Burst">
+            <HintPath>..\..\Libraries\Unity.Burst.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Unity.Mathematics">
+            <HintPath>..\..\Libraries\Unity.Mathematics.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="Unity.Netcode.Runtime">
             <HintPath>..\..\Libraries\Unity.Netcode.Runtime.dll</HintPath>
             <Private>false</Private>
