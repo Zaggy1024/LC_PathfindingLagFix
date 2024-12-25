@@ -21,8 +21,16 @@ namespace PathfindingLagFix.Patches
             throw Common.StubError(nameof(FinishChoosingFarthestNodeFromEntrance), PATCH_NAME);
         }
 
+        static bool UseVanilla = false;
+
         static IEnumerator ChooseFarthestNodeFromEntrance(FlowermanAI flowerman, Vector3 mainEntrancePosition)
         {
+            if (UseVanilla)
+            {
+                FinishChoosingFarthestNodeFromEntrance(flowerman, flowerman.ChooseFarthestNodeFromPosition(mainEntrancePosition));
+                yield break;
+            }
+
             var farthestNodeCoroutine = Coroutines.ChooseFarthestNodeFromPosition(flowerman, mainEntrancePosition);
             Transform lastTransform = null;
             while (farthestNodeCoroutine.MoveNext())
@@ -84,7 +92,7 @@ namespace PathfindingLagFix.Patches
 
             instructionsList.InsertRange(chooseFarTarget.Start, [
                 // if (searchCoroutine == null)
-                //   StartCoroutine(PatchFlowermanAI.ChooseFarNodeWhenNoTarget(this, mainEntrancePosition));
+                //   searchCoroutine = StartCoroutine(PatchFlowermanAI.ChooseFarNodeWhenNoTarget(this, mainEntrancePosition));
                 new CodeInstruction(OpCodes.Ldarg_0).WithLabels(chooseFarTargetLabels),
                 new CodeInstruction(OpCodes.Ldfld, Reflection.f_EnemyAI_searchCoroutine),
                 new CodeInstruction(OpCodes.Brtrue_S, skipSearchCoroutineLabel),
