@@ -132,9 +132,14 @@ namespace PathfindingLagFix.Patches
                 PathSizes = new(count, Allocator.Persistent);
             }
 
-            public NativeArray<NavMeshLocation> GetPath(int index)
+            public NativeArray<NavMeshLocation> GetPathBuffer(int index)
             {
                 return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, Pathfinding.MAX_STRAIGHT_PATH);
+            }
+
+            public NativeArray<NavMeshLocation> GetPath(int index)
+            {
+                return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, PathSizes[index]);
             }
 
             public void Execute(int index)
@@ -185,7 +190,7 @@ namespace PathfindingLagFix.Patches
                 }
 
                 // Check if the end of the path is close enough to the target.
-                var endPosition = GetPath(index)[pathSize - 1].position;
+                var endPosition = GetPathBuffer(index)[pathSize - 1].position;
                 var distance = (endPosition - destination).sqrMagnitude;
                 if (distance > MAX_ENDPOINT_DISTANCE_SQR)
                 {
@@ -259,11 +264,13 @@ namespace PathfindingLagFix.Patches
 #endif
 
             var candidateCount = enemy.allAINodes.Length;
+            Plugin.Instance.Logger.LogInfo($"Starting jobs.");
             var status = StartJobs(enemy, target, candidateCount);
             var job = status.Job;
             var jobHandle = status.JobHandle;
 
             int result = -1;
+            int failedCount = 0;
             var totalTime = 0d;
 
             while (result == -1)
@@ -272,6 +279,9 @@ namespace PathfindingLagFix.Patches
                 var startTime = Time.realtimeSinceStartupAsDouble;
                 bool complete = true;
                 var pathsLeft = offset;
+
+                failedCount = 0;
+
                 for (int i = 0; i < candidateCount; i++)
                 {
                     var nodeStatus = job.Statuses[i];
@@ -285,13 +295,18 @@ namespace PathfindingLagFix.Patches
                     {
                         var path = job.GetPath(i);
                         if (path[0].polygon.IsNull())
+                        {
                             Plugin.Instance.Logger.LogWarning($"{i}: Path is null");
+                            continue;
+                        }
+
+                        Debug.Log($"Path {i} ends at {path[^1].position} with status {nodeStatus}");
 
                         if (avoidLineOfSight)
                         {
                             // Check if any segment of the path enters a player's line of sight.
                             bool pathObstructed = false;
-                            for (int segment = 1; segment < path.Length && !pathObstructed; segment++)
+                            for (int segment = 1; segment < path.Length && segment < 16 && !pathObstructed; segment++)
                             {
                                 if (Physics.Linecast(path[segment - 1].position, path[segment].position, LINE_OF_SIGHT_LAYER_MASK))
                                     pathObstructed = true;
@@ -305,7 +320,11 @@ namespace PathfindingLagFix.Patches
                             result = i;
                             break;
                         }
+
+                        continue;
                     }
+
+                    failedCount++;
                 }
                 // If all line of sight checks fail, we will find the furthest reachable path to allow the pathfinding to succeed once we set the target.
                 // The vanilla version of this function may return an unreachable location, so the NavMeshAgent will reset it to a reachable location and
@@ -324,7 +343,11 @@ namespace PathfindingLagFix.Patches
                 }
                 totalTime += Time.realtimeSinceStartupAsDouble - startTime;
             }
-            Plugin.Instance.Logger.LogInfo($"Finding final path took {totalTime * 1_000_000} microseconds, path {(result >= 0 ? "exists" : "doesn't exist")}");
+            Plugin.Instance.Logger.LogInfo($"Finding final path took {totalTime * 1_000_000} microseconds");
+            if (result != -1)
+                Plugin.Instance.Logger.LogInfo($"Chose path {result}/{candidateCount} with {failedCount} failures: {status.SortedPositions[result]} ({status.SortedNodes[result].transform.position})");
+            else
+                Plugin.Instance.Logger.LogInfo($"Failed to choose path out of {candidateCount} candidates with {failedCount} failures");
 
             if (result >= 0)
             {
@@ -334,7 +357,7 @@ namespace PathfindingLagFix.Patches
 
             while (!jobHandle.IsCompleted)
                 yield return null;
-
+            Plugin.Instance.Logger.LogInfo($"Job completed fully. Disposing.");
 #if DRAW_LINES
             {
                 for (int i = 0; i < candidateCount; i++)

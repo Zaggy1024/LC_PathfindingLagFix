@@ -32,19 +32,14 @@ namespace PathfindingLagFix.Patches
             }
 
             var farthestNodeCoroutine = Coroutines.ChooseFarthestNodeFromPosition(flowerman, mainEntrancePosition);
-            Transform lastTransform = null;
             while (farthestNodeCoroutine.MoveNext())
             {
                 if (farthestNodeCoroutine.Current != null)
-                    lastTransform = farthestNodeCoroutine.Current;
+                    FinishChoosingFarthestNodeFromEntrance(flowerman, farthestNodeCoroutine.Current);
                 yield return null;
             }
 
             flowerman.searchCoroutine = null;
-
-            if (farthestNodeCoroutine.Current == null)
-                yield break;
-            FinishChoosingFarthestNodeFromEntrance(flowerman, lastTransform);
         }
 
         public static int NoPlayerToTargetNodeVar = -1;
@@ -125,8 +120,6 @@ namespace PathfindingLagFix.Patches
 
             var vanillaInstructions = PatchFlowermanAI.NoPlayerToTargetInstructions;
             var nodeVar = PatchFlowermanAI.NoPlayerToTargetNodeVar;
-            PatchFlowermanAI.NoPlayerToTargetInstructions = null;
-            PatchFlowermanAI.NoPlayerToTargetNodeVar = -1;
 
             for (var i = 0; i < vanillaInstructions.Count(); i++)
             {

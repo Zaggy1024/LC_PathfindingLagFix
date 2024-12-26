@@ -28,7 +28,7 @@ namespace PathfindingLagFix.Utilities
 {
     public static class Pathfinding
     {
-        public const int MAX_PATH_SIZE = 2048;
+        public const int MAX_PATH_SIZE = 4096;
         public const int MAX_STRAIGHT_PATH = 128;
 
         private static float CrossMagnitude(float3 u, float3 v)
