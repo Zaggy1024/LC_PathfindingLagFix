@@ -4,19 +4,28 @@ using System.Collections.Generic;
 
 namespace PathfindingLagFix.Utilities
 {
-    public class IDMap<T>(int capacity) : IEnumerable<T>
+    public class IDMap<T> : IEnumerable<T>
     {
-        private T[] backingArray = new T[capacity];
+        private Func<T> constructor;
+        private T[] backingArray;
 
-        public IDMap() : this(0)
+        public IDMap(Func<T> elementConstructor, int capacity)
         {
+            constructor = elementConstructor;
+            backingArray = new T[capacity];
+            for (var i = 0; i < capacity; i++)
+                backingArray[i] = constructor();
         }
 
         private void EnsureCapacity(int capacity)
         {
             if (backingArray.Length >= capacity)
                 return;
-            backingArray = new T[capacity];
+            var newArray = new T[capacity];
+            Array.Copy(backingArray, newArray, Math.Min(backingArray.Length, newArray.Length));
+            for (var i = backingArray.Length; i < capacity; i++)
+                newArray[i] = constructor();
+            backingArray = newArray;
         }
 
         public ref T GetItem(int index)
