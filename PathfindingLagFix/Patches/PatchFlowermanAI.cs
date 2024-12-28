@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
 using HarmonyLib;
+using UnityEngine;
 
 using PathfindingLagFix.Utilities.IL;
 using PathfindingLagFix.Utilities;
@@ -22,6 +22,7 @@ public class PatchFlowermanAI
 
     private const int FAR_FROM_MAIN_ID = 0;
     private const int EVADE_PLAYER_ID = 1;
+    private const int SNEAK_TO_PLAYER_ID = 2;
 
     // Returns whether to skip the vanilla code.
     private static bool ChooseFarthestNodeFromMainEntrance(FlowermanAI flowerman)
@@ -90,7 +91,7 @@ public class PatchFlowermanAI
             return instructions;
         }
         return injector
-            .InsertInPlace([
+            .InsertInPlaceAfterBranch([
                 new(OpCodes.Ldarg_0),
                 new(OpCodes.Call, typeof(PatchFlowermanAI).GetMethod(nameof(ChooseFarthestNodeFromMainEntrance), BindingFlags.NonPublic | BindingFlags.Static, [typeof(FlowermanAI)])),
                 new(OpCodes.Brtrue_S, endLabel),
@@ -149,6 +150,62 @@ public class PatchFlowermanAI
                 new(OpCodes.Ret),
             ])
             .PrintContext("Injected AvoidClosestPlayer")
+            .ReleaseInstructions();
+    }
+
+    private static bool ChooseClosestNodeToPlayer(FlowermanAI flowerman)
+    {
+        var status = AsyncPathfinding.StartChoosingClosestNodeToPosition(flowerman, SNEAK_TO_PLAYER_ID, flowerman.targetPlayer.transform.position, avoidLineOfSight: true);
+        var node = status.RetrieveChosenNode(out flowerman.mostOptimalDistance);
+        if (node == null)
+            return true;
+
+        flowerman.targetNode = node;
+        return false;
+    }
+
+    [HarmonyTranspiler]
+    [HarmonyPatch(nameof(FlowermanAI.ChooseClosestNodeToPlayer))]
+    private static IEnumerable<CodeInstruction> ChooseClosestNodeToPlayerTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    {
+        // + if (!PatchFlowermanAI.useAsync) {
+        //     if (targetNode == null)
+        //       targetNode = allAINodes[0].transform;
+        //     var node = ChooseClosestNodeToPosition(targetPlayer.transform.position, avoidLineOfSight: true);
+        //     if (node != null)
+        //       targetNode = node;
+        // + } else if (PatchFlowermanAI.ChooseClosestNodeToPlayer(this)) {
+        // +   return;
+        // + }
+        var skipVanillaLabel = generator.DefineLabel();
+        var injector = new ILInjector(instructions)
+            .Insert([
+                new(OpCodes.Ldsfld, typeof(PatchFlowermanAI).GetField(nameof(useAsync), BindingFlags.NonPublic | BindingFlags.Static)),
+                new(OpCodes.Brtrue_S, skipVanillaLabel),
+            ])
+            .Find([
+                ILMatcher.Ldarg(),
+                ILMatcher.Ldloc(),
+                ILMatcher.Stfld(Reflection.f_EnemyAI_targetNode),
+            ]);
+        if (!injector.IsValid)
+        {
+            Plugin.Instance.Logger.LogError($"Failed to find storing of the target node in {nameof(FlowermanAI)}.{nameof(FlowermanAI.ChooseClosestNodeToPlayer)}().");
+            return instructions;
+        }
+
+        var skipEarlyReturnLabel = generator.DefineLabel();
+        return injector
+            .GoToMatchEnd()
+            .InsertAfterBranch([
+                new CodeInstruction(OpCodes.Br_S, skipEarlyReturnLabel),
+                new CodeInstruction(OpCodes.Ldarg_0).WithLabels(skipVanillaLabel),
+                new CodeInstruction(OpCodes.Call, typeof(PatchFlowermanAI).GetMethod(nameof(ChooseClosestNodeToPlayer), BindingFlags.NonPublic | BindingFlags.Static, [typeof(FlowermanAI)])),
+                new CodeInstruction(OpCodes.Brfalse_S, skipEarlyReturnLabel),
+                new CodeInstruction(OpCodes.Ret),
+            ])
+            .AddLabel(skipEarlyReturnLabel)
+            .PrintContext("Injected ChooseClosestNodeToPlayer")
             .ReleaseInstructions();
     }
 }

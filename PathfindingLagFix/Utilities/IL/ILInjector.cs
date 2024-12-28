@@ -327,8 +327,24 @@ public class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator g
         return this;
     }
 
+    public ILInjector RemoveAllPreviousInstructions()
+    {
+        if (!IsValid)
+            throw new InvalidOperationException(INVALID);
+
+        instructions.RemoveRange(0, index);
+        matchEnd -= index;
+        if (matchEnd < 0)
+            matchEnd = 0;
+        index = 0;
+        return this;
+    }
+
     public ILInjector Remove(int count = 1)
     {
+        if (!IsValid)
+            throw new InvalidOperationException(INVALID);
+
         instructions.RemoveRange(index, count);
         if (matchEnd > index)
             matchEnd = Math.Max(index, matchEnd - count);

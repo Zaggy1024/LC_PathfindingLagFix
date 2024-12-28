@@ -42,7 +42,7 @@ public static class AsyncPathfinding
         public JobHandle JobHandle;
 
         public Transform ChosenNode;
-        public float MostOptimalDistance = 2000;
+        public float MostOptimalDistance = float.PositiveInfinity;
 
         public void SortNodes(EnemyAI enemy, Vector3 target, bool furthestFirst)
         {
@@ -104,8 +104,11 @@ public static class AsyncPathfinding
             var chosenNode = ChosenNode;
             mostOptimalDistance = MostOptimalDistance;
 
+            if (chosenNode == null)
+                return null;
+
             ChosenNode = null;
-            MostOptimalDistance = 2000;
+            MostOptimalDistance = float.PositiveInfinity;
             CurrentSearchTypeID = -1;
 
             return chosenNode;
@@ -251,7 +254,7 @@ public static class AsyncPathfinding
         }
     }
 
-    private static EnemyPathfindingStatus StartJobs(EnemyAI enemy, EnemyPathfindingStatus status, Vector3 target, int count)
+    private static EnemyPathfindingStatus StartJobs(EnemyAI enemy, EnemyPathfindingStatus status, Vector3 target, int count, bool farthestFirst)
     {
         var agent = enemy.agent;
         var position = enemy.transform.position;
@@ -262,7 +265,7 @@ public static class AsyncPathfinding
         if (agent.isOnOffMeshLink)
             position = agent.currentOffMeshLinkData.endPos;
 
-        status.SortNodes(enemy, target, true);
+        status.SortNodes(enemy, target, farthestFirst);
 
 #if BENCHMARKING
         var initialize = Time.realtimeSinceStartupAsDouble;
@@ -290,7 +293,7 @@ public static class AsyncPathfinding
         return status;
     }
 
-    internal static EnemyPathfindingStatus StartChoosingFarthestNodeFromPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
+    internal static EnemyPathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
         var status = EnemyPathfindingStatuses[enemy.thisEnemyIndex];
         if (status.CurrentSearchTypeID == searchTypeID)
@@ -299,20 +302,30 @@ public static class AsyncPathfinding
             return status;
 
         status.CurrentSearchTypeID = searchTypeID;
-        status.Coroutine = enemy.StartCoroutine(ChooseFarthestNodeFromPosition(enemy, status, target, avoidLineOfSight, offset, capDistance));
+        status.Coroutine = enemy.StartCoroutine(ChooseFarthestNodeFromPosition(enemy, status, target, farthestFirst, avoidLineOfSight, offset, capDistance));
         return status;
+    }
+
+    internal static EnemyPathfindingStatus StartChoosingFarthestNodeFromPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
+    {
+        return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: true, avoidLineOfSight, offset, capDistance);
+    }
+
+    internal static EnemyPathfindingStatus StartChoosingClosestNodeToPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
+    {
+        return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: false, avoidLineOfSight, offset, capDistance);
     }
 
     private static readonly ProfilerMarker startJobsProfilerMarker = new("StartJobs");
 
-    internal static IEnumerator ChooseFarthestNodeFromPosition(EnemyAI enemy, EnemyPathfindingStatus status, Vector3 target, bool avoidLineOfSight, int offset, float capDistance)
+    internal static IEnumerator ChooseFarthestNodeFromPosition(EnemyAI enemy, EnemyPathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
         if (!enemy.agent.isOnNavMesh)
             yield break;
 
         var candidateCount = enemy.allAINodes.Length;
         using (var startJobsProfilerMarkerAuto = startJobsProfilerMarker.Auto())
-            StartJobs(enemy, status, target, candidateCount);
+            StartJobs(enemy, status, target, candidateCount, farthestFirst);
         var job = status.Job;
         var jobHandle = status.JobHandle;
 
