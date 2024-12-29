@@ -23,6 +23,7 @@ namespace PathfindingLagFix
             Instance = this;
 
             harmony.PatchAll(typeof(PatchFlowermanAI));
+            harmony.PatchAll(typeof(PatchCentipedeAI));
         }
     }
 }
