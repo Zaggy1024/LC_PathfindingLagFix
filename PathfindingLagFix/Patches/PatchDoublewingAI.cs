@@ -23,9 +23,9 @@ internal static class PatchDoublewingAI
         return doublewing.CheckLineOfSightForPlayer(80, 8, 4);
     }
 
-    private static AsyncPathfinding.EnemyPathfindingStatus StartEvasionPathfindingJob(DoublewingAI doublewing, PlayerControllerB player)
+    private static AsyncDistancePathfinding.EnemyDistancePathfindingStatus StartEvasionPathfindingJob(DoublewingAI doublewing, PlayerControllerB player)
     {
-        return AsyncPathfinding.StartChoosingFarthestNodeFromPosition(doublewing, EVADE_PLAYER_ID, player.transform.position, avoidLineOfSight: false, Random.Range(0, doublewing.allAINodes.Length / 2));
+        return AsyncDistancePathfinding.StartChoosingFarthestNodeFromPosition(doublewing, EVADE_PLAYER_ID, player.transform.position, avoidLineOfSight: false, Random.Range(0, doublewing.allAINodes.Length / 2));
     }
 
     private static Transform ChoosePlayerEvasionNodeAsync(DoublewingAI doublewing, PlayerControllerB player)

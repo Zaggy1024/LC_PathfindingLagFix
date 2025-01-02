@@ -28,7 +28,7 @@ internal static class PatchFlowermanAI
     {
         if (useAsync)
         {
-            var status = AsyncPathfinding.StartChoosingFarthestNodeFromPosition(flowerman, FAR_FROM_MAIN_ID, flowerman.mainEntrancePosition);
+            var status = AsyncDistancePathfinding.StartChoosingFarthestNodeFromPosition(flowerman, FAR_FROM_MAIN_ID, flowerman.mainEntrancePosition);
             var node = status.RetrieveChosenNode(out flowerman.mostOptimalDistance);
             if (node != null)
             {
@@ -104,7 +104,7 @@ internal static class PatchFlowermanAI
         if (!useAsync)
             return false;
 
-        var status = AsyncPathfinding.StartChoosingFarthestNodeFromPosition(flowerman, EVADE_PLAYER_ID, flowerman.targetPlayer.transform.position, avoidLineOfSight: true, offset: 0, AsyncPathfinding.DEFAULT_CAP_DISTANCE);
+        var status = AsyncDistancePathfinding.StartChoosingFarthestNodeFromPosition(flowerman, EVADE_PLAYER_ID, flowerman.targetPlayer.transform.position, avoidLineOfSight: true, offset: 0, AsyncDistancePathfinding.DEFAULT_CAP_DISTANCE);
         var node = status.RetrieveChosenNode(out flowerman.mostOptimalDistance);
 
         if (node == null)
@@ -155,7 +155,7 @@ internal static class PatchFlowermanAI
     // When it is allowed to run, the chosen node will be set as the destination if it is valid.
     private static bool ChooseClosestNodeToPlayerAsync(FlowermanAI flowerman)
     {
-        var status = AsyncPathfinding.StartChoosingClosestNodeToPosition(flowerman, SNEAK_TO_PLAYER_ID, flowerman.targetPlayer.transform.position, avoidLineOfSight: true);
+        var status = AsyncDistancePathfinding.StartChoosingClosestNodeToPosition(flowerman, SNEAK_TO_PLAYER_ID, flowerman.targetPlayer.transform.position, avoidLineOfSight: true);
         var node = status.RetrieveChosenNode(out flowerman.mostOptimalDistance);
         if (node == null)
             return true;

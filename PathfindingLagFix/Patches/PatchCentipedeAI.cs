@@ -25,7 +25,7 @@ internal static class PatchCentipedeAI
             return false;
 
         var nodeCount = centipede.allAINodes.Length;
-        var status = AsyncPathfinding.StartChoosingFarthestNodeFromPosition(centipede, HIDE_AWAY_FROM_MAIN_ID, centipede.mainEntrancePosition, avoidLineOfSight: false, (nodeCount / 2 + centipede.thisEnemyIndex) % nodeCount);
+        var status = AsyncDistancePathfinding.StartChoosingFarthestNodeFromPosition(centipede, HIDE_AWAY_FROM_MAIN_ID, centipede.mainEntrancePosition, avoidLineOfSight: false, (nodeCount / 2 + centipede.thisEnemyIndex) % nodeCount);
         var node = status.RetrieveChosenNode(out centipede.mostOptimalDistance);
         if (node != null)
         {
@@ -74,7 +74,7 @@ internal static class PatchCentipedeAI
         if (!useAsync)
             return false;
 
-        var status = AsyncPathfinding.StartChoosingClosestNodeToPosition(centipede, HIDE_NEAR_PLAYER_ID, targetPos, avoidLineOfSight: true, centipede.offsetNodeAmount);
+        var status = AsyncDistancePathfinding.StartChoosingClosestNodeToPosition(centipede, HIDE_NEAR_PLAYER_ID, targetPos, avoidLineOfSight: true, centipede.offsetNodeAmount);
         var node = status.RetrieveChosenNode(out centipede.mostOptimalDistance);
 
         if (node != null)
