@@ -18,6 +18,9 @@ namespace PathfindingLagFix.Patches
         public static readonly MethodInfo m_EnemyAI_ChooseClosestNodeToPosition = typeof(EnemyAI).GetMethod(nameof(EnemyAI.ChooseClosestNodeToPosition), [typeof(Vector3), typeof(bool), typeof(int)]);
         public static readonly MethodInfo m_EnemyAI_SetDestinationToPosition = typeof(EnemyAI).GetMethod(nameof(EnemyAI.SetDestinationToPosition), [typeof(Vector3), typeof(bool)]);
         public static readonly MethodInfo m_EnemyAI_CheckLineOfSightForPlayer = typeof(EnemyAI).GetMethod(nameof(EnemyAI.CheckLineOfSightForPlayer), [typeof(float), typeof(int), typeof(int)]);
+        public static readonly MethodInfo m_EnemyAI_PathIsIntersectedByLineOfSight = typeof(EnemyAI).GetMethod(nameof(EnemyAI.PathIsIntersectedByLineOfSight), [typeof(Vector3), typeof(bool), typeof(bool), typeof(bool)]);
+        public static readonly MethodInfo m_EnemyAI_GetPathDistance = typeof(EnemyAI).GetMethod(nameof(EnemyAI.GetPathDistance), [typeof(Vector3), typeof(Vector3)]);
+        public static readonly MethodInfo m_EnemyAI_EliminateNodeFromSearch = typeof(EnemyAI).GetMethod(nameof(EnemyAI.EliminateNodeFromSearch), BindingFlags.NonPublic | BindingFlags.Instance, [typeof(int)]);
         public static readonly FieldInfo f_EnemyAI_targetNode = typeof(EnemyAI).GetField(nameof(EnemyAI.targetNode));
         public static readonly FieldInfo f_EnemyAI_targetPlayer = typeof(EnemyAI).GetField(nameof(EnemyAI.targetPlayer));
         public static readonly FieldInfo f_EnemyAI_favoriteSpot = typeof(EnemyAI).GetField(nameof(EnemyAI.favoriteSpot));

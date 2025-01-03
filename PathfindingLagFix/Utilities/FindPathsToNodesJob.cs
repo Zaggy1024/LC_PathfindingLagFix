@@ -1,4 +1,4 @@
-using Unity.Collections.LowLevel.Unsafe;
+﻿using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -19,20 +19,24 @@ internal struct FindPathsToNodesJob : IJobFor
     [ReadOnly] internal int AreaMask;
     [ReadOnly] internal Vector3 Origin;
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<Vector3> Destinations;
+    [ReadOnly] internal bool CalculateDistance;
 
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<NavMeshQuery> Queries;
+    [ReadOnly] internal bool QueriesTaken;
 
     [ReadOnly] internal NativeArray<bool> Canceled;
 
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<PathQueryStatus> Statuses;
     [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshLocation> Paths;
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> PathSizes;
+    [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<float> PathDistances;
 
-    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates)
+    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
     {
         AgentTypeID = agentTypeID;
         AreaMask = areaMask;
         Origin = origin;
+        CalculateDistance = calculateDistance;
 
         var count = candidates.Length;
         EnsureCount(count);
@@ -44,7 +48,15 @@ internal struct FindPathsToNodesJob : IJobFor
         for (var i = 0; i < count; i++)
             Statuses[i] = PathQueryStatus.InProgress;
 
+        if (calculateDistance)
+        {
+            for (var i = 0; i < count; i++)
+                PathDistances[i] = 0;
+        }
+
         QueryPool.Take(Queries, count);
+        QueriesTaken = true;
+
         Destinations.CopyFrom(candidates);
     }
 
@@ -61,6 +73,7 @@ internal struct FindPathsToNodesJob : IJobFor
             Statuses.Dispose();
             Paths.Dispose();
             PathSizes.Dispose();
+            PathDistances.Dispose();
         }
 
         if (count == 0)
@@ -72,6 +85,13 @@ internal struct FindPathsToNodesJob : IJobFor
         Statuses = new(count, Allocator.Persistent);
         Paths = new(count * Pathfinding.MAX_STRAIGHT_PATH, Allocator.Persistent);
         PathSizes = new(count, Allocator.Persistent);
+        PathDistances = new(count, Allocator.Persistent);
+    }
+
+    public void Cancel()
+    {
+        if (Canceled.IsCreated)
+            Canceled[0] = true;
     }
 
     public NativeArray<NavMeshLocation> GetPathBuffer(int index)
@@ -138,19 +158,33 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         // Check if the end of the path is close enough to the target.
-        var endPosition = GetPathBuffer(index)[pathSize - 1].position;
-        var distance = (endPosition - destination).sqrMagnitude;
-        if (distance > MAX_ENDPOINT_DISTANCE_SQR)
+        var pathCorners = GetPath(index);
+        var endPosition = pathCorners[^1].position;
+        var endDistance = (endPosition - destination).sqrMagnitude;
+        if (endDistance > MAX_ENDPOINT_DISTANCE_SQR)
         {
             Statuses[index] = PathQueryStatus.Failure;
             return;
         }
 
+        if (CalculateDistance)
+        {
+            var firstCorner = pathCorners[0];
+            var distance = 0f;
+            for (var i = 1; i < pathCorners.Length; i++)
+                distance += Vector3.Distance(pathCorners[i].position, firstCorner.position);
+            PathDistances[index] = distance;
+        }
+
         Statuses[index] = PathQueryStatus.Success;
     }
 
-    internal readonly void FreeNonReusableResources()
+    internal void FreeNonReusableResources(int count)
     {
-        QueryPool.Free(Queries);
+        if (QueriesTaken)
+        {
+            QueryPool.Free(Queries.AsSpan()[..count]);
+            QueriesTaken = false;
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 
@@ -22,6 +22,7 @@ namespace PathfindingLagFix
         {
             Instance = this;
 
+            harmony.PatchAll(typeof(PatchEnemyAI));
             harmony.PatchAll(typeof(PatchFlowermanAI));
             harmony.PatchAll(typeof(PatchCentipedeAI));
             harmony.PatchAll(typeof(PatchPufferAI));

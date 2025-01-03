@@ -152,7 +152,7 @@ internal static class AsyncDistancePathfinding
             return status;
         if (status.Coroutine != null)
         {
-            status.Job.Canceled[0] = true;
+            status.Job.Cancel();
             return status;
         }
 
@@ -307,7 +307,7 @@ internal static class AsyncDistancePathfinding
         Plugin.Instance.Logger.LogInfo($"Job completed fully. Disposing.");
 #endif
 
-        job.FreeNonReusableResources();
+        job.FreeNonReusableResources(candidateCount);
         status.Coroutine = null;
     }
 }

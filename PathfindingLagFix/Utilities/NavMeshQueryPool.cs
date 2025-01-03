@@ -37,14 +37,13 @@ public sealed class NavMeshQueryPool(int capacity)
         freeQueries = newBackingArray;
     }
 
-    public void Free(NativeArray<NavMeshQuery> queries)
+    public void Free(Span<NavMeshQuery> queries)
     {
         var destinationIndex = currentIndex;
         currentIndex += queries.Length;
         if (currentIndex > freeQueries.Length)
             GrowArray();
-
-        queries.AsSpan().CopyTo(freeQueries.AsSpan().Slice(destinationIndex, queries.Length));
+        queries.CopyTo(freeQueries.AsSpan().Slice(destinationIndex, queries.Length));
     }
 
     ~NavMeshQueryPool()
