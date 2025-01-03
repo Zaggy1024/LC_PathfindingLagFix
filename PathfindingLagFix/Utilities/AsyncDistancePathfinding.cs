@@ -307,7 +307,7 @@ internal static class AsyncDistancePathfinding
         Plugin.Instance.Logger.LogInfo($"Job completed fully. Disposing.");
 #endif
 
-        job.Dispose();
+        job.FreeNonReusableResources();
         status.Coroutine = null;
     }
 }

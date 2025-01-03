@@ -1,4 +1,4 @@
-﻿using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -62,6 +62,10 @@ internal struct FindPathsToNodesJob : IJobFor
             Paths.Dispose();
             PathSizes.Dispose();
         }
+
+        if (count == 0)
+            return;
+
         Destinations = new(count, Allocator.Persistent);
         Queries = new(count, Allocator.Persistent);
 
@@ -145,7 +149,7 @@ internal struct FindPathsToNodesJob : IJobFor
         Statuses[index] = PathQueryStatus.Success;
     }
 
-    internal void Dispose()
+    internal readonly void FreeNonReusableResources()
     {
         QueryPool.Free(Queries);
     }
