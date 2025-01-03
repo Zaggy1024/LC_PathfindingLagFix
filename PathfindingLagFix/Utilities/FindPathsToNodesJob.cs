@@ -54,7 +54,7 @@ internal struct FindPathsToNodesJob : IJobFor
                 PathDistances[i] = 0;
         }
 
-        QueryPool.Take(Queries, count);
+        QueryPool.Take(Queries.AsSpan()[..count]);
         QueriesTaken = true;
 
         Destinations.CopyFrom(candidates);
@@ -186,5 +186,11 @@ internal struct FindPathsToNodesJob : IJobFor
             QueryPool.Free(Queries.AsSpan()[..count]);
             QueriesTaken = false;
         }
+    }
+
+    internal void FreeAllResources(int count)
+    {
+        FreeNonReusableResources(count);
+        EnsureCount(0);
     }
 }

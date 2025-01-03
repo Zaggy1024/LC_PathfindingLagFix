@@ -300,4 +300,12 @@ internal static class PatchEnemyAI
             ])
             .ReleaseInstructions();
     }
+
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(EnemyAI.OnDestroy))]
+    private static void OnDestroyPostfix(EnemyAI __instance)
+    {
+        AsyncRoamingPathfinding.RemoveStatus(__instance);
+        AsyncDistancePathfinding.RemoveStatus(__instance);
+    }
 }

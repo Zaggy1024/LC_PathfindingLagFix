@@ -12,18 +12,18 @@ public sealed class NavMeshQueryPool(int capacity)
 
     public int FreeCount => currentIndex;
 
-    public void Take(NativeArray<NavMeshQuery> destination, int count)
+    public void Take(Span<NavMeshQuery> destination)
     {
         var copiedItemCount = 0;
 
         if (currentIndex > 0)
         {
-            copiedItemCount = Math.Min(count, currentIndex);
+            copiedItemCount = Math.Min(destination.Length, currentIndex);
             currentIndex -= copiedItemCount;
-            freeQueries.AsSpan().Slice(currentIndex, copiedItemCount).CopyTo(destination.AsSpan()[..count]);
+            freeQueries.AsSpan().Slice(currentIndex, copiedItemCount).CopyTo(destination);
         }
 
-        for (int i = copiedItemCount; i < count; i++)
+        for (int i = copiedItemCount; i < destination.Length; i++)
             destination[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, Pathfinding.MAX_PATH_SIZE);
     }
 

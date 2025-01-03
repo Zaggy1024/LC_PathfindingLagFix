@@ -7,6 +7,11 @@ internal static class AsyncRoamingPathfinding
 {
     private static readonly IDMap<EnemyRoamingPathfindingStatus> Statuses = new(() => new EnemyRoamingPathfindingStatus(), 1);
 
+    internal static void RemoveStatus(EnemyAI enemy)
+    {
+        Statuses[enemy.thisEnemyIndex] = new EnemyRoamingPathfindingStatus();
+    }
+
     internal class EnemyRoamingPathfindingStatus
     {
         internal FindPathsToNodesJob PathsFromEnemyJob;
@@ -50,6 +55,12 @@ internal static class AsyncRoamingPathfinding
         internal int GetJobIndex(int index)
         {
             return nodeCount - 1 - index;
+        }
+
+        ~EnemyRoamingPathfindingStatus()
+        {
+            PathsFromEnemyJob.FreeAllResources(nodeCount);
+            PathsFromSearchStartJob.FreeAllResources(nodeCount);
         }
     }
 

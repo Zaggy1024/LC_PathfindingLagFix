@@ -15,6 +15,11 @@ internal static class AsyncDistancePathfinding
 
     private static readonly IDMap<EnemyDistancePathfindingStatus> Statuses = new(() => new EnemyDistancePathfindingStatus(), 1);
 
+    internal static void RemoveStatus(EnemyAI enemy)
+    {
+        Statuses[enemy.thisEnemyIndex] = new EnemyDistancePathfindingStatus();
+    }
+
 #if BENCHMARKING
     static double create = 0;
     static double sort = 0;
@@ -103,6 +108,11 @@ internal static class AsyncDistancePathfinding
             CurrentSearchTypeID = -1;
 
             return chosenNode;
+        }
+
+        ~EnemyDistancePathfindingStatus()
+        {
+            Job.FreeAllResources(AINodes.Length);
         }
     }
 
