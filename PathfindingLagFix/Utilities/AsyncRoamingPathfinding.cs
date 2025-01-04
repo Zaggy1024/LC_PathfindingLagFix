@@ -1,4 +1,4 @@
-﻿using Unity.Jobs;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace PathfindingLagFix.Utilities;
@@ -24,11 +24,8 @@ internal static class AsyncRoamingPathfinding
 
         internal void StartJobs(EnemyAI enemy)
         {
-            if (nodeCount != 0)
-            {
-                PathsFromEnemyJob.FreeNonReusableResources(nodeCount);
-                PathsFromSearchStartJob.FreeNonReusableResources(nodeCount);
-            }
+            PathsFromEnemyJob.FreeNonReusableResources();
+            PathsFromSearchStartJob.FreeNonReusableResources();
 
             var enemyPosition = enemy.transform.position;
 
@@ -59,8 +56,8 @@ internal static class AsyncRoamingPathfinding
 
         ~EnemyRoamingPathfindingStatus()
         {
-            PathsFromEnemyJob.FreeAllResources(nodeCount);
-            PathsFromSearchStartJob.FreeAllResources(nodeCount);
+            PathsFromEnemyJob.FreeAllResources();
+            PathsFromSearchStartJob.FreeAllResources();
         }
     }
 

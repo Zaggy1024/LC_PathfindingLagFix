@@ -112,7 +112,7 @@ internal static class AsyncDistancePathfinding
 
         ~EnemyDistancePathfindingStatus()
         {
-            Job.FreeAllResources(AINodes.Length);
+            Job.FreeAllResources();
         }
     }
 
@@ -317,7 +317,7 @@ internal static class AsyncDistancePathfinding
         Plugin.Instance.Logger.LogInfo($"Job completed fully. Disposing.");
 #endif
 
-        job.FreeNonReusableResources(candidateCount);
+        job.FreeNonReusableResources();
         status.Coroutine = null;
     }
 }

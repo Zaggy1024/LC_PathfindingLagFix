@@ -22,7 +22,7 @@ internal struct FindPathsToNodesJob : IJobFor
     [ReadOnly] internal bool CalculateDistance;
 
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<NavMeshQuery> Queries;
-    [ReadOnly] internal bool QueriesTaken;
+    [ReadOnly] internal NativeArray<int> OwnedQueryCount;
 
     [ReadOnly] internal NativeArray<bool> Canceled;
 
@@ -33,6 +33,8 @@ internal struct FindPathsToNodesJob : IJobFor
 
     public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
     {
+        CreateFixedArrays();
+
         AgentTypeID = agentTypeID;
         AreaMask = areaMask;
         Origin = origin;
@@ -40,10 +42,6 @@ internal struct FindPathsToNodesJob : IJobFor
 
         var count = candidates.Length;
         EnsureCount(count);
-
-        if (Canceled == default)
-            Canceled = new(1, Allocator.Persistent);
-        Canceled[0] = false;
 
         for (var i = 0; i < count; i++)
             Statuses[i] = PathQueryStatus.InProgress;
@@ -55,9 +53,26 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         QueryPool.Take(Queries.AsSpan()[..count]);
-        QueriesTaken = true;
+        OwnedQueryCount[0] = count;
+
+        Canceled[0] = false;
 
         Destinations.CopyFrom(candidates);
+    }
+
+    private void CreateFixedArrays()
+    {
+        if (OwnedQueryCount != default)
+            return;
+
+        OwnedQueryCount = new(1, Allocator.Persistent);
+        Canceled = new(1, Allocator.Persistent);
+    }
+
+    private void DisposeFixedArrays()
+    {
+        OwnedQueryCount.Dispose();
+        Canceled.Dispose();
     }
 
     private void EnsureCount(int count)
@@ -65,16 +80,7 @@ internal struct FindPathsToNodesJob : IJobFor
         if (Destinations.Length >= count)
             return;
 
-        if (Destinations.IsCreated)
-        {
-            Destinations.Dispose();
-            Queries.Dispose();
-
-            Statuses.Dispose();
-            Paths.Dispose();
-            PathSizes.Dispose();
-            PathDistances.Dispose();
-        }
+        DisposeResizeableArrays();
 
         if (count == 0)
             return;
@@ -86,6 +92,21 @@ internal struct FindPathsToNodesJob : IJobFor
         Paths = new(count * Pathfinding.MAX_STRAIGHT_PATH, Allocator.Persistent);
         PathSizes = new(count, Allocator.Persistent);
         PathDistances = new(count, Allocator.Persistent);
+    }
+
+    private void DisposeResizeableArrays()
+    {
+        if (!Destinations.IsCreated)
+            return;
+
+        Destinations.Dispose();
+
+        Queries.Dispose();
+
+        Statuses.Dispose();
+        Paths.Dispose();
+        PathSizes.Dispose();
+        PathDistances.Dispose();
     }
 
     public void Cancel()
@@ -179,18 +200,21 @@ internal struct FindPathsToNodesJob : IJobFor
         Statuses[index] = PathQueryStatus.Success;
     }
 
-    internal void FreeNonReusableResources(int count)
+    internal void FreeNonReusableResources()
     {
-        if (QueriesTaken)
-        {
-            QueryPool.Free(Queries.AsSpan()[..count]);
-            QueriesTaken = false;
-        }
+        if (!OwnedQueryCount.IsCreated)
+            return;
+        var ownedQueryCount = OwnedQueryCount[0];
+        if (ownedQueryCount <= 0)
+            return;
+        QueryPool.Free(Queries.AsSpan()[..ownedQueryCount]);
+        OwnedQueryCount[0] = 0;
     }
 
-    internal void FreeAllResources(int count)
+    internal void FreeAllResources()
     {
-        FreeNonReusableResources(count);
-        EnsureCount(0);
+        FreeNonReusableResources();
+        DisposeResizeableArrays();
+        DisposeFixedArrays();
     }
 }
