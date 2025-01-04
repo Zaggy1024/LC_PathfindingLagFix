@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -38,6 +38,9 @@ internal static class PatchEnemyAI
             return PathQueryStatus.Success;
 
         var status = AsyncRoamingPathfinding.GetStatus(enemy);
+        if (!status.PathsFromEnemyJob.Statuses.IsCreated)
+            StopPreviousJobAndStartNewOne(enemy);
+
         var pathIndex = status.GetJobIndex(index);
         var pathStatus = status.PathsFromEnemyJob.Statuses[pathIndex].GetStatus();
         if (!enemy.currentSearch.startedSearchAtSelf && status.PathsFromSearchStartJob.Statuses[pathIndex].GetStatus() == PathQueryStatus.InProgress)
@@ -48,11 +51,12 @@ internal static class PatchEnemyAI
     private static void SetPathDistance(EnemyAI enemy, int index)
     {
         var status = AsyncRoamingPathfinding.GetStatus(enemy);
+        var job = enemy.currentSearch.startedSearchAtSelf ? status.PathsFromEnemyJob : status.PathsFromSearchStartJob;
 
-        if (enemy.currentSearch.startedSearchAtSelf)
-            enemy.pathDistance = status.PathsFromEnemyJob.PathDistances[status.GetJobIndex(index)];
+        if (job.PathDistances.IsCreated)
+            enemy.pathDistance = job.PathDistances[status.GetJobIndex(index)];
         else
-            enemy.pathDistance = status.PathsFromSearchStartJob.PathDistances[status.GetJobIndex(index)];
+            enemy.pathDistance = 0;
     }
 
     private static void CancelJobs(EnemyAI enemy)
