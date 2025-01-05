@@ -1,4 +1,4 @@
-﻿using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -168,7 +168,7 @@ internal struct FindPathsToNodesJob : IJobFor
         status = query.EndFindPath(out var pathNodesSize);
         query.GetPathResult(pathNodes);
 
-        var straightPathStatus = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPath(index), out var pathSize);
+        var straightPathStatus = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize);
         PathSizes[index] = pathSize;
         pathNodes.Dispose();
 
