@@ -1,4 +1,4 @@
-using Unity.Collections.LowLevel.Unsafe;
+﻿using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -22,9 +22,9 @@ internal struct FindPathsToNodesJob : IJobFor
     [ReadOnly] internal bool CalculateDistance;
 
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<NavMeshQuery> Queries;
-    [ReadOnly] internal NativeArray<int> OwnedQueryCount;
+    [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> OwnedQueryCount;
 
-    [ReadOnly] internal NativeArray<bool> Canceled;
+    [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<bool> Canceled;
 
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<PathQueryStatus> Statuses;
     [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshLocation> Paths;
@@ -57,7 +57,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
         Canceled[0] = false;
 
-        Destinations.CopyFrom(candidates);
+        NativeArray<Vector3>.Copy(candidates, Destinations, count);
     }
 
     private void CreateFixedArrays()
