@@ -3,17 +3,20 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
+using Unity.Jobs.LowLevel.Unsafe;
 
 namespace PathfindingLagFix.Utilities;
 
 //[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 internal struct FindPathsToNodesJob : IJobFor
 {
+    [NativeDisableContainerSafetyRestriction] private static NativeArray<NavMeshQuery> StaticThreadQueries;
+
     private const float MAX_ORIGIN_DISTANCE = 5;
     private const float MAX_ENDPOINT_DISTANCE = 1.5f;
     private const float MAX_ENDPOINT_DISTANCE_SQR = MAX_ENDPOINT_DISTANCE * MAX_ENDPOINT_DISTANCE;
 
-    private static readonly NavMeshQueryPool QueryPool = new(256);
+    [ReadOnly, NativeSetThreadIndex] internal int ThreadIndex;
 
     [ReadOnly] internal int AgentTypeID;
     [ReadOnly] internal int AreaMask;
@@ -21,8 +24,7 @@ internal struct FindPathsToNodesJob : IJobFor
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<Vector3> Destinations;
     [ReadOnly] internal bool CalculateDistance;
 
-    [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<NavMeshQuery> Queries;
-    [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> OwnedQueryCount;
+    [ReadOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshQuery> ThreadQueriesRef;
 
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<bool> Canceled;
 
@@ -33,6 +35,8 @@ internal struct FindPathsToNodesJob : IJobFor
 
     public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
     {
+        CreateStaticAllocations();
+
         CreateFixedArrays();
 
         AgentTypeID = agentTypeID;
@@ -52,26 +56,45 @@ internal struct FindPathsToNodesJob : IJobFor
                 PathDistances[i] = 0;
         }
 
-        QueryPool.Take(Queries.AsSpan()[..count]);
-        OwnedQueryCount[0] = count;
+        ThreadQueriesRef = StaticThreadQueries;
 
         Canceled[0] = false;
 
         NativeArray<Vector3>.Copy(candidates, Destinations, count);
     }
 
-    private void CreateFixedArrays()
+    private static void CreateStaticAllocations()
     {
-        if (OwnedQueryCount != default)
+        var threadCount = JobsUtility.ThreadIndexCount;
+        if (StaticThreadQueries.Length == threadCount)
             return;
 
-        OwnedQueryCount = new(1, Allocator.Persistent);
+        DisposeStaticAllocations();
+
+        StaticThreadQueries = new(threadCount, Allocator.Persistent);
+        for (var i = 0; i < StaticThreadQueries.Length; i++)
+            StaticThreadQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, Pathfinding.MAX_PATH_SIZE);
+
+        Application.quitting += DisposeStaticAllocations;
+    }
+
+    private static void DisposeStaticAllocations()
+    {
+        foreach (var query in StaticThreadQueries)
+            query.Dispose();
+
+        StaticThreadQueries.Dispose();
+
+        Application.quitting -= DisposeStaticAllocations;
+    }
+
+    private void CreateFixedArrays()
+    {
         Canceled = new(1, Allocator.Persistent);
     }
 
     private void DisposeFixedArrays()
     {
-        OwnedQueryCount.Dispose();
         Canceled.Dispose();
     }
 
@@ -86,7 +109,6 @@ internal struct FindPathsToNodesJob : IJobFor
             return;
 
         Destinations = new(count, Allocator.Persistent);
-        Queries = new(count, Allocator.Persistent);
 
         Statuses = new(count, Allocator.Persistent);
         Paths = new(count * Pathfinding.MAX_STRAIGHT_PATH, Allocator.Persistent);
@@ -100,8 +122,6 @@ internal struct FindPathsToNodesJob : IJobFor
             return;
 
         Destinations.Dispose();
-
-        Queries.Dispose();
 
         Statuses.Dispose();
         Paths.Dispose();
@@ -133,7 +153,8 @@ internal struct FindPathsToNodesJob : IJobFor
             return;
         }
 
-        var query = Queries[index];
+        var query = ThreadQueriesRef[ThreadIndex];
+
         var originExtents = new Vector3(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
         var origin = query.MapLocation(Origin, originExtents, AgentTypeID, AreaMask);
 
@@ -200,20 +221,8 @@ internal struct FindPathsToNodesJob : IJobFor
         Statuses[index] = PathQueryStatus.Success;
     }
 
-    internal void FreeNonReusableResources()
-    {
-        if (!OwnedQueryCount.IsCreated)
-            return;
-        var ownedQueryCount = OwnedQueryCount[0];
-        if (ownedQueryCount <= 0)
-            return;
-        QueryPool.Free(Queries.AsSpan()[..ownedQueryCount]);
-        OwnedQueryCount[0] = 0;
-    }
-
     internal void FreeAllResources()
     {
-        FreeNonReusableResources();
         DisposeResizeableArrays();
         DisposeFixedArrays();
     }

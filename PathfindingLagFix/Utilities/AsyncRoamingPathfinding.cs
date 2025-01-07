@@ -24,9 +24,6 @@ internal static class AsyncRoamingPathfinding
 
         internal void StartJobs(EnemyAI enemy)
         {
-            PathsFromEnemyJob.FreeNonReusableResources();
-            PathsFromSearchStartJob.FreeNonReusableResources();
-
             var enemyPosition = enemy.transform.position;
 
             var search = enemy.currentSearch;
