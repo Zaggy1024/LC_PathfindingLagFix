@@ -1,7 +1,9 @@
 using System.Collections;
 
 using Unity.Jobs;
+#if BENCHMARKING
 using Unity.Profiling;
+#endif
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
@@ -181,7 +183,9 @@ internal static class AsyncDistancePathfinding
         return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: false, avoidLineOfSight, offset, capDistance);
     }
 
+#if BENCHMARKING
     private static readonly ProfilerMarker startJobsProfilerMarker = new("StartJobs");
+#endif
 
     internal static IEnumerator ChooseFarthestNodeFromPosition(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
@@ -189,8 +193,10 @@ internal static class AsyncDistancePathfinding
             yield break;
 
         var candidateCount = enemy.allAINodes.Length;
+#if BENCHMARKING
         using (var startJobsProfilerMarkerAuto = startJobsProfilerMarker.Auto())
-            StartJobs(enemy, status, target, candidateCount, farthestFirst);
+#endif
+        StartJobs(enemy, status, target, candidateCount, farthestFirst);
         var job = status.Job;
         var jobHandle = status.JobHandle;
 
