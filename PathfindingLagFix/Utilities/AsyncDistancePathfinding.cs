@@ -212,7 +212,10 @@ internal static class AsyncDistancePathfinding
         while (result == -1)
         {
             yield return null;
+#if BENCHMARKING
             var startTime = Time.realtimeSinceStartupAsDouble;
+#endif
+
             bool complete = true;
             var pathsLeft = offset;
 
