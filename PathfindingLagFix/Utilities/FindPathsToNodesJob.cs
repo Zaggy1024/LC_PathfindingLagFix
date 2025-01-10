@@ -1,4 +1,4 @@
-﻿using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -211,10 +211,9 @@ internal struct FindPathsToNodesJob : IJobFor
 
         if (CalculateDistance)
         {
-            var firstCorner = pathCorners[0];
             var distance = 0f;
             for (var i = 1; i < pathCorners.Length; i++)
-                distance += Vector3.Distance(pathCorners[i].position, firstCorner.position);
+                distance += Vector3.Distance(pathCorners[i - 1].position, pathCorners[i].position);
             PathDistances[index] = distance;
         }
 
