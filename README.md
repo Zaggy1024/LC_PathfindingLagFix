@@ -1,17 +1,25 @@
 # PathfindingLagFix
-This modifies the Snare Flea AI to prevent large stutters that can occur every 200ms in some situations, by spreading the load of checking hundreds of paths over multiple frames.
+Moves long-running pathfinding tasks off the main thread to improve frame rates significantly, especially for hosts.
 
-Originally, it was designed to address lag that the Bracken could cause, which has since been addressed by Zeekers.
+Most patches must be tailored to each AI, so this will not affect modded enemies in most cases.
 
-## Details
-- The EnemyAI.ChooseFarthestNodeFromPosition() function could end up checking 180+ nav mesh nodes for accessibility, if most or none of them were accessible. This could happen if the enemy was not on the nav mesh, or if the function call required line of sight and players were blocking most of the map from access. The following cases have been patched:
-    - When the Bracken cannot target a player, either due to them being outside or being mid-air making a jump in the interior, it will try to path to the farthest position from the entrance. This could cause a large stutter on maps with a lot of inaccessible nodes.
-    - The Snare Flea searches for a location far from the main door if no players are targetable. This check could take some time even under normal circumstances due to trying to find a node midway through the accessible nodes. It would always occur if the Snare Flea fell out of the playable area.
-    - There may be other cases where this type of issue could occur. Please report any cases to investigate with steps to reproduce the lag.
+### Frametime graph comparisons:
+Before/After on March with late night spawns:
 
-Historically, this mod also contained patches to prevent Brackens and Spore Lizards from causing lag when retreating from a player while blocked from most positions by players' lines of sight. Those issues have since been patched in the vanilla game.
+![Before](https://raw.githubusercontent.com/Zaggy1024/LC_PathfindingLagFix/refs/heads/master/Media/march_night_before.png) ![After](https://raw.githubusercontent.com/Zaggy1024/LC_PathfindingLagFix/refs/heads/master/Media/march_night_after.png)
 
-## Notes
-
-### FixCentipedeLag Compatibility
-PathfindingLagFix is an _alternative_ to FixCentipedeLag, which aims to remove the lag caused by Snare Fleas. PathfindingLagFix also prevents the stutters that FixCentipedeLag avoids, but does so in such a way that the AI's behavior should be unchanged, whereas FixCentipedeLag will kill Snare Fleas almost instantly if no players are inside the building where Snare Fleas can target them.
+## Patches
+The enemy behaviors currently patched include:
+- All roaming enemies. This includes thumpers, hoarding bugs, jesters, and many more of the vanilla enemies. This is a single patch that applies to all enemies that use the vanilla search routine, and is the one exception in which modded enemies may be affected.
+- Bracken patches:
+    - The search for a hiding spot away from the main entrance when no players are targetable
+    - The search for a hiding spot away from a player when it is spotted
+    - The pathing towards the player out of line of sight when it is hunting
+- Snare flea:
+    - The search for a hiding spot at a certain number of paths away from main when no players are present
+    - The search for a hiding spot near a player when they are targetable
+- Spore lizard:
+    - The search for a hiding spot away from a player when it is spotted
+- Manticoil:
+    - The search for a node to fly to when it is disturbed by a player at close range
+- More to come!

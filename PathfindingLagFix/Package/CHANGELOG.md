@@ -1,3 +1,12 @@
+## Version 2.0.0 (Beta)
+- Rewrote the mod to run any pathfinding patches off the main thread via Unity Jobs, reducing the performance impact to near zero.
+- Patches have been completely rewritten and now include:
+  - All roaming AI
+  - Bracken hunting, evasion, and hiding spot pathfinding
+  - Snare flea hiding spot pathfinding
+  - Spore lizard evasion pathfinding
+  - Manticoil evasion pathfinding
+
 ## Version 1.4.0
 - Brought back the patch for lag caused when the Bracken has no player target and is therefore pathing to the furthest position from the interior entrance. This would often occur when the player jumps.
 

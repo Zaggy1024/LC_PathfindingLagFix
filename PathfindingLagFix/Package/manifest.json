@@ -1,6 +1,6 @@
 {
-    "name": "PathfindingLagFix",
-    "version_number": "1.4.0",
+    "name": "PathfindingLagFix_Beta",
+    "version_number": "2.0.0",
     "website_url": "https://github.com/Zaggy1024/LC_PathfindingLagFix/",
     "description": "Lethal Company mod to fix stutters caused by the AI of Brackens and Snare Fleas. Updated for v60+.",
     "dependencies": [
