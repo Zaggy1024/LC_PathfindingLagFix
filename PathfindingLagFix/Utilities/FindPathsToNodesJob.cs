@@ -176,9 +176,14 @@ internal struct FindPathsToNodesJob : IJobFor
             return;
         }
 
-        query.BeginFindPath(origin, destinationLocation, AreaMask);
+        // Find the shortest path through the polygons of the navmesh.
+        var status = query.BeginFindPath(origin, destinationLocation, AreaMask);
+        if (status.GetStatus() == PathQueryStatus.Failure)
+        {
+            Statuses[index] = status;
+            return;
+        }
 
-        PathQueryStatus status = PathQueryStatus.InProgress;
         while (status.GetStatus() == PathQueryStatus.InProgress)
             status = query.UpdateFindPath(int.MaxValue, out int _);
 
