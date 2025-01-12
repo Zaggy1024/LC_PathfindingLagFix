@@ -197,11 +197,12 @@ internal struct FindPathsToNodesJob : IJobFor
         var pathNodes = new NativeArray<PolygonId>(pathNodesSize, Allocator.Temp);
         query.GetPathResult(pathNodes);
 
-        var straightPathStatus = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize);
+        // Calculate straight path from polygons.
+        status = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize) | status.GetDetail();
         PathSizes[index] = pathSize;
         pathNodes.Dispose();
 
-        if (straightPathStatus.GetStatus() != PathQueryStatus.Success)
+        if (status.GetStatus() != PathQueryStatus.Success)
         {
             Statuses[index] = status;
             return;
@@ -213,7 +214,7 @@ internal struct FindPathsToNodesJob : IJobFor
         var endDistance = (endPosition - destination).sqrMagnitude;
         if (endDistance > MAX_ENDPOINT_DISTANCE_SQR)
         {
-            Statuses[index] = PathQueryStatus.Failure;
+            Statuses[index] = PathQueryStatus.Failure | status.GetDetail();
             return;
         }
 
@@ -225,7 +226,7 @@ internal struct FindPathsToNodesJob : IJobFor
             PathDistances[index] = distance;
         }
 
-        Statuses[index] = PathQueryStatus.Success;
+        Statuses[index] = status;
     }
 
     internal void FreeAllResources()
