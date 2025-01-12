@@ -20,9 +20,10 @@
 // and Zaggy1024.
 
 using Unity.Collections;
-using UnityEngine;
-using UnityEngine.Experimental.AI;
 using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.AI;
+using UnityEngine.Experimental.AI;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -229,5 +230,16 @@ public static class Pathfinding
     public static PathQueryStatus GetDetail(this PathQueryStatus status)
     {
         return status & PathQueryStatus.StatusDetailMask;
+    }
+
+    public static Vector3 GetAgentPosition(this NavMeshAgent agent)
+    {
+        // NavMeshAgent.CalculatePath() starts from the current off-mesh link's end position to allow agents
+        // passing through off-mesh links to continue calculating paths. Without this, we get a little pause
+        // when exiting an off-mesh link.
+        if (agent.isOnOffMeshLink)
+            return agent.currentOffMeshLinkData.endPos;
+
+        return agent.transform.position;
     }
 }

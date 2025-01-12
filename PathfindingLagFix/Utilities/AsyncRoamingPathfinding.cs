@@ -24,10 +24,9 @@ internal static class AsyncRoamingPathfinding
 
         internal void StartJobs(EnemyAI enemy)
         {
-            var enemyPosition = enemy.transform.position;
-
             var search = enemy.currentSearch;
             var agent = enemy.agent;
+            var position = enemy.agent.GetAgentPosition();
 
             var nodes = search.unsearchedNodes;
             nodeCount = nodes.Count;
@@ -36,7 +35,7 @@ internal static class AsyncRoamingPathfinding
             for (var i = 0; i < nodes.Count; i++)
                 nodePositions[GetJobIndex(i)] = nodes[i].transform.position;
 
-            PathsFromEnemyJob.Initialize(agent.agentTypeID, agent.areaMask, enemyPosition, nodePositions, calculateDistance: search.startedSearchAtSelf);
+            PathsFromEnemyJob.Initialize(agent.agentTypeID, agent.areaMask, position, nodePositions, calculateDistance: search.startedSearchAtSelf);
             PathsFromEnemyJobHandle = PathsFromEnemyJob.ScheduleByRef(nodes.Count, default);
 
             if (!search.startedSearchAtSelf)

@@ -121,14 +121,7 @@ internal static class AsyncDistancePathfinding
     private static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst)
     {
         var agent = enemy.agent;
-        var position = enemy.transform.position;
-
-        // NavMeshAgent.CalculatePath() starts from the current off-mesh link's end position to allow agents
-        // passing through off-mesh links to continue calculating paths. Without this, we get a little pause
-        // when exiting an off-mesh link.
-        if (agent.isOnOffMeshLink)
-            position = agent.currentOffMeshLinkData.endPos;
-
+        var position = agent.GetAgentPosition();
         status.SortNodes(enemy, target, farthestFirst);
 
 #if BENCHMARKING
