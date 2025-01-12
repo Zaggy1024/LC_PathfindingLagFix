@@ -1,9 +1,9 @@
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
-using Unity.Jobs.LowLevel.Unsafe;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -18,13 +18,13 @@ internal struct FindPathsToNodesJob : IJobFor
 
     [ReadOnly, NativeSetThreadIndex] internal int ThreadIndex;
 
+    [ReadOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshQuery> ThreadQueriesRef;
+
     [ReadOnly] internal int AgentTypeID;
     [ReadOnly] internal int AreaMask;
     [ReadOnly] internal Vector3 Origin;
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<Vector3> Destinations;
     [ReadOnly] internal bool CalculateDistance;
-
-    [ReadOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshQuery> ThreadQueriesRef;
 
     [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<bool> Canceled;
 
@@ -35,7 +35,8 @@ internal struct FindPathsToNodesJob : IJobFor
 
     public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
     {
-        CreateStaticAllocations();
+        CreateQueries();
+        ThreadQueriesRef = StaticThreadQueries;
 
         CreateFixedArrays();
 
@@ -56,36 +57,38 @@ internal struct FindPathsToNodesJob : IJobFor
                 PathDistances[i] = 0;
         }
 
-        ThreadQueriesRef = StaticThreadQueries;
-
         Canceled[0] = false;
 
         NativeArray<Vector3>.Copy(candidates, Destinations, count);
     }
 
-    private static void CreateStaticAllocations()
+    private static void CreateQueries()
     {
         var threadCount = JobsUtility.ThreadIndexCount;
-        if (StaticThreadQueries.Length == threadCount)
+        if (StaticThreadQueries.Length >= threadCount)
             return;
 
-        DisposeStaticAllocations();
+        Application.quitting -= DisposeQueries;
 
-        StaticThreadQueries = new(threadCount, Allocator.Persistent);
+        var newQueries = new NativeArray<NavMeshQuery>(threadCount, Allocator.Persistent);
         for (var i = 0; i < StaticThreadQueries.Length; i++)
-            StaticThreadQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, Pathfinding.MAX_PATH_SIZE);
+            newQueries[i] = StaticThreadQueries[i];
+        for (var i = StaticThreadQueries.Length; i < threadCount; i++)
+            newQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, Pathfinding.MAX_PATH_SIZE);
+        StaticThreadQueries.Dispose();
+        StaticThreadQueries = newQueries;
 
-        Application.quitting += DisposeStaticAllocations;
+        Application.quitting += DisposeQueries;
     }
 
-    private static void DisposeStaticAllocations()
+    private static void DisposeQueries()
     {
         foreach (var query in StaticThreadQueries)
             query.Dispose();
 
         StaticThreadQueries.Dispose();
 
-        Application.quitting -= DisposeStaticAllocations;
+        Application.quitting -= DisposeQueries;
     }
 
     private void CreateFixedArrays()
