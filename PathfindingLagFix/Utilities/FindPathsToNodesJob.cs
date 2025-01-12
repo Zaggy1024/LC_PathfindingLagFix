@@ -182,14 +182,14 @@ internal struct FindPathsToNodesJob : IJobFor
         while (status.GetStatus() == PathQueryStatus.InProgress)
             status = query.UpdateFindPath(int.MaxValue, out int _);
 
+        status = query.EndFindPath(out var pathNodesSize);
         if (status.GetStatus() != PathQueryStatus.Success)
         {
             Statuses[index] = status;
             return;
         }
 
-        var pathNodes = new NativeArray<PolygonId>(Pathfinding.MAX_PATH_SIZE, Allocator.Temp);
-        status = query.EndFindPath(out var pathNodesSize);
+        var pathNodes = new NativeArray<PolygonId>(pathNodesSize, Allocator.Temp);
         query.GetPathResult(pathNodes);
 
         var straightPathStatus = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize);
