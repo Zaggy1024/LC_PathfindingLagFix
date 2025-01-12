@@ -161,7 +161,7 @@ internal struct FindPathsToNodesJob : IJobFor
         var originExtents = new Vector3(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
         var origin = query.MapLocation(Origin, originExtents, AgentTypeID, AreaMask);
 
-        if (!query.IsValid(origin.polygon))
+        if (!query.IsValid(origin))
         {
             Statuses[index] = PathQueryStatus.Failure;
             return;
