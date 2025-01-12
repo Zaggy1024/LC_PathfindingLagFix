@@ -1,3 +1,7 @@
+## Version 2.0.1 (Beta)
+- Modified threaded code in an effort to prevent crashes. The crashes are extremely rare, so these fixes are unconfirmed, and crashes may still be present.
+- Fixed some issues that may cause unintended inconsistencies in pathfinding versus the vanilla code.
+
 ## Version 2.0.0 (Beta)
 - Rewrote the mod to run any pathfinding patches off the main thread via Unity Jobs, reducing the performance impact to near zero.
 - Patches have been completely rewritten and now include:
