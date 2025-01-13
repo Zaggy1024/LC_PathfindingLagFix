@@ -1,4 +1,7 @@
 # PathfindingLagFix
+
+## WARNING: BETA VERSION! MAY CAUSE CRASHES!
+
 Moves long-running pathfinding tasks off the main thread to improve frame rates significantly, especially for hosts.
 
 Most patches must be tailored to each AI, so this will not affect modded enemies in most cases.

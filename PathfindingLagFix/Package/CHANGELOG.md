@@ -1,3 +1,6 @@
+## Version 2.0.2 (Beta)
+- Added a warning to the readme and description about potential crashes.
+
 ## Version 2.0.1 (Beta)
 - Modified threaded code in an effort to prevent crashes. The crashes are extremely rare, so these fixes are unconfirmed, and crashes may still be present.
 - Fixed some issues that may cause unintended inconsistencies in pathfinding versus the vanilla code.
