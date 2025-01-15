@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-
-using Unity.Collections.LowLevel.Unsafe;
+﻿using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
@@ -13,8 +10,6 @@ namespace PathfindingLagFix.Utilities;
 //[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 internal struct FindPathsToNodesJob : IJobFor
 {
-    private static ConcurrentDictionary<IntPtr, object> RunningThreads = [];
-
     [NativeDisableContainerSafetyRestriction] private static NativeArray<NavMeshQuery> StaticThreadQueries;
 
     private const float MAX_ORIGIN_DISTANCE = 5;
@@ -153,16 +148,6 @@ internal struct FindPathsToNodesJob : IJobFor
         return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, PathSizes[index]);
     }
 
-    private class ScopeGuard(Action action) : IDisposable
-    {
-        private Action? action = action;
-        public void Dispose()
-        {
-            action?.Invoke();
-            action = null;
-        }
-    }
-
     public void Execute(int index)
     {
         if (Canceled[0])
@@ -172,21 +157,6 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         var query = ThreadQueriesRef[ThreadIndex];
-
-        {
-            if (!RunningThreads.TryAdd(query.m_NavMeshQuery, new object()))
-            {
-                Plugin.Instance.Logger.LogError($"Using query at address 0x{query.m_NavMeshQuery.ToInt64():X16} twice.");
-                Statuses[index] = PathQueryStatus.Failure;
-                return;
-            }
-
-            using var queryScopeGuard = new ScopeGuard(() =>
-            {
-                if (!RunningThreads.TryRemove(query.m_NavMeshQuery, out _))
-                    Plugin.Instance.Logger.LogError($"Query at address 0x{query.m_NavMeshQuery.ToInt64():X16} was not known to be in use.");
-            });
-        }
 
         var originExtents = new Vector3(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
         var origin = query.MapLocation(Origin, originExtents, AgentTypeID, AreaMask);
