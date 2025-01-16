@@ -156,6 +156,9 @@ internal struct FindPathsToNodesJob : IJobFor
             return;
         }
 
+        // Lock the navmesh to ensure that we don't crash while updating the path here.
+        NavMeshLock.BeginNavMeshRead();
+
         var query = ThreadQueriesRef[ThreadIndex];
 
         var originExtents = new Vector3(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
@@ -164,6 +167,7 @@ internal struct FindPathsToNodesJob : IJobFor
         if (!query.IsValid(origin))
         {
             Statuses[index] = PathQueryStatus.Failure;
+            NavMeshLock.EndNavMeshRead();
             return;
         }
 
@@ -173,6 +177,7 @@ internal struct FindPathsToNodesJob : IJobFor
         if (!query.IsValid(destinationLocation))
         {
             Statuses[index] = PathQueryStatus.Failure;
+            NavMeshLock.EndNavMeshRead();
             return;
         }
 
@@ -181,6 +186,7 @@ internal struct FindPathsToNodesJob : IJobFor
         if (status.GetStatus() == PathQueryStatus.Failure)
         {
             Statuses[index] = status;
+            NavMeshLock.EndNavMeshRead();
             return;
         }
 
@@ -188,9 +194,11 @@ internal struct FindPathsToNodesJob : IJobFor
             status = query.UpdateFindPath(int.MaxValue, out int _);
 
         status = query.EndFindPath(out var pathNodesSize);
+
         if (status.GetStatus() != PathQueryStatus.Success)
         {
             Statuses[index] = status;
+            NavMeshLock.EndNavMeshRead();
             return;
         }
 
@@ -199,6 +207,10 @@ internal struct FindPathsToNodesJob : IJobFor
 
         // Calculate straight path from polygons.
         status = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize) | status.GetDetail();
+
+        // Now that we have a copy of all the navmesh data we need, release the navmesh lock.
+        NavMeshLock.EndNavMeshRead();
+
         PathSizes[index] = pathSize;
         pathNodes.Dispose();
 

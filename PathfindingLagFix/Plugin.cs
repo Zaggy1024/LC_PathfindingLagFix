@@ -3,6 +3,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 
 using PathfindingLagFix.Patches;
+using PathfindingLagFix.Utilities;
 
 namespace PathfindingLagFix
 {
@@ -21,6 +22,12 @@ namespace PathfindingLagFix
         public void Awake()
         {
             Instance = this;
+
+            if (!NavMeshLock.Initialize(harmony))
+            {
+                Logger.LogInfo($"Failed to initialize navmesh concurrency safeties, disabling all patches.");
+                return;
+            }
 
             harmony.PatchAll(typeof(PatchEnemyAI));
             harmony.PatchAll(typeof(PatchFlowermanAI));
