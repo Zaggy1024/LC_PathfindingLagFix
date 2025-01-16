@@ -1,9 +1,6 @@
 using System.Collections;
 
 using Unity.Jobs;
-#if BENCHMARKING
-using Unity.Profiling;
-#endif
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
@@ -22,11 +19,6 @@ internal static class AsyncDistancePathfinding
         Statuses[enemy.thisEnemyIndex] = new EnemyDistancePathfindingStatus();
     }
 
-#if BENCHMARKING
-    static double create = 0;
-    static double sort = 0;
-#endif
-
     internal class EnemyDistancePathfindingStatus
     {
         public Coroutine Coroutine;
@@ -44,10 +36,6 @@ internal static class AsyncDistancePathfinding
 
         public void SortNodes(EnemyAI enemy, Vector3 target, bool furthestFirst)
         {
-#if BENCHMARKING
-            create = Time.realtimeSinceStartupAsDouble;
-#endif
-
             var count = enemy.allAINodes.Length;
             if (enemy.allAINodes != AINodes)
             {
@@ -63,19 +51,10 @@ internal static class AsyncDistancePathfinding
                 }
             }
 
-#if BENCHMARKING
-            create = Time.realtimeSinceStartupAsDouble - create;
-            Plugin.Instance.Logger.LogInfo($"Creating arrays took {create * 1_000_000} microseconds");
-#endif
-
             static void Swap<T>(ref T a, ref T b)
             {
                 (a, b) = (b, a);
             }
-
-#if BENCHMARKING
-            sort = Time.realtimeSinceStartupAsDouble;
-#endif
 
             // Use an insertion sort to reorder the nodes since they will be mostly sorted.
             for (int i = 1; i < count; i++)
@@ -90,11 +69,6 @@ internal static class AsyncDistancePathfinding
                     Swap(ref SortedPositions[j - 1], ref SortedPositions[j]);
                 }
             }
-
-#if BENCHMARKING
-            sort = Time.realtimeSinceStartupAsDouble - sort;
-            Plugin.Instance.Logger.LogInfo($"Sorting took {sort * 1_000_000} microseconds");
-#endif
         }
 
         public Transform RetrieveChosenNode(out float mostOptimalDistance)
@@ -124,28 +98,10 @@ internal static class AsyncDistancePathfinding
         var position = agent.GetAgentPosition();
         status.SortNodes(enemy, target, farthestFirst);
 
-#if BENCHMARKING
-        var initialize = Time.realtimeSinceStartupAsDouble;
-#endif
-
         ref var job = ref status.Job;
         job.Initialize(agent.agentTypeID, agent.areaMask, position, status.SortedPositions);
 
-#if BENCHMARKING
-        initialize = Time.realtimeSinceStartupAsDouble - initialize;
-        Plugin.Instance.Logger.LogInfo($"Initializing took {initialize * 1_000_000} microseconds");
-
-        var schedule = Time.realtimeSinceStartupAsDouble;
-#endif
-
         status.JobHandle = job.ScheduleByRef(count, default);
-
-#if BENCHMARKING
-        schedule = Time.realtimeSinceStartupAsDouble - schedule;
-        Plugin.Instance.Logger.LogInfo($"Scheduling took {schedule * 1_000_000} microseconds");
-
-        Plugin.Instance.Logger.LogInfo($"Total: {(create + sort + initialize + schedule) * 1_000_000}");
-#endif
 
         return status;
     }
@@ -176,45 +132,25 @@ internal static class AsyncDistancePathfinding
         return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: false, avoidLineOfSight, offset, capDistance);
     }
 
-#if BENCHMARKING
-    private static readonly ProfilerMarker startJobsProfilerMarker = new("StartJobs");
-#endif
-
     internal static IEnumerator ChooseFarthestNodeFromPosition(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
         if (!enemy.agent.isOnNavMesh)
             yield break;
 
         var candidateCount = enemy.allAINodes.Length;
-#if BENCHMARKING
-        using (var startJobsProfilerMarkerAuto = startJobsProfilerMarker.Auto())
-#endif
         StartJobs(enemy, status, target, candidateCount, farthestFirst);
         var job = status.Job;
         var jobHandle = status.JobHandle;
 
         int result = -1;
 
-#if BENCHMARKING
-        int failedCount = 0;
-        var totalTime = 0d;
-#endif
-
         var capDistanceSqr = capDistance * capDistance;
 
         while (result == -1)
         {
             yield return null;
-#if BENCHMARKING
-            var startTime = Time.realtimeSinceStartupAsDouble;
-#endif
-
             bool complete = true;
             var pathsLeft = offset;
-
-#if BENCHMARKING
-            failedCount = 0;
-#endif
 
             var enemyPosition = enemy.transform.position;
 
@@ -265,10 +201,6 @@ internal static class AsyncDistancePathfinding
 
                     continue;
                 }
-
-#if BENCHMARKING
-                failedCount++;
-#endif
             }
             // If all line of sight checks fail, we will find the furthest reachable path to allow the pathfinding to succeed once we set the target.
             // The vanilla version of this function may return an unreachable location, so the NavMeshAgent will reset it to a reachable location and
@@ -285,21 +217,10 @@ internal static class AsyncDistancePathfinding
                 }
                 break;
             }
-
-#if BENCHMARKING
-            totalTime += Time.realtimeSinceStartupAsDouble - startTime;
-#endif
         }
 
         job.Canceled[0] = true;
 
-#if BENCHMARKING
-        Plugin.Instance.Logger.LogInfo($"Finding final path took {totalTime * 1_000_000} microseconds");
-        if (result != -1)
-            Plugin.Instance.Logger.LogInfo($"Chose path {result}/{candidateCount} with {failedCount} failures: {status.SortedPositions[result]} ({status.SortedNodes[result].transform.position})");
-        else
-            Plugin.Instance.Logger.LogInfo($"Failed to choose path out of {candidateCount} candidates with {failedCount} failures");
-#endif
         if (result == -1 && status.SortedNodes.Length > 0)
         {
             Plugin.Instance.Logger.LogInfo($"Defaulting to result = 0");
@@ -314,10 +235,6 @@ internal static class AsyncDistancePathfinding
 
         while (!jobHandle.IsCompleted)
             yield return null;
-
-#if BENCHMARKING
-        Plugin.Instance.Logger.LogInfo($"Job completed fully. Disposing.");
-#endif
 
         status.Coroutine = null;
     }
