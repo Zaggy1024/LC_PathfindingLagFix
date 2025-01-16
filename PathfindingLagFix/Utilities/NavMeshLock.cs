@@ -6,6 +6,7 @@ using System.Threading;
 using HarmonyLib;
 using Unity.AI.Navigation;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
@@ -16,7 +17,8 @@ namespace PathfindingLagFix.Utilities;
 
 internal static class NavMeshLock
 {
-    internal static ReaderWriterLockSlim BlockingLock = new(LockRecursionPolicy.SupportsRecursion);
+    internal static ReadersWriterLock BlockingLock = new();
+    internal static int BlockingLockDepth = 0;
     internal static ManualResetEvent JobRunCondition = new(true);
 
     private class LockJobs { }
@@ -113,23 +115,27 @@ internal static class NavMeshLock
 
     public static void BeginNavMeshWrite()
     {
-        BlockingLock.EnterWriteLock();
+        Assert.IsTrue(Object.CurrentThreadIsMainThread());
+        if (BlockingLockDepth++ == 0)
+            BlockingLock.BeginWrite();
     }
 
     public static void EndNavMeshWrite()
     {
-        BlockingLock.ExitWriteLock();
+        Assert.IsTrue(Object.CurrentThreadIsMainThread());
+        if (--BlockingLockDepth == 0)
+            BlockingLock.EndWrite();
     }
 
     public static void BeginNavMeshRead()
     {
         JobRunCondition.WaitOne();
-        BlockingLock.EnterReadLock();
+        BlockingLock.BeginRead();
     }
 
     public static void EndNavMeshRead()
     {
-        BlockingLock.ExitReadLock();
+        BlockingLock.EndRead();
     }
 
     private static readonly MethodInfo m_BeginNavMeshWrite = typeof(NavMeshLock).GetMethod(nameof(BeginNavMeshWrite), BindingFlags.Public | BindingFlags.Static);
