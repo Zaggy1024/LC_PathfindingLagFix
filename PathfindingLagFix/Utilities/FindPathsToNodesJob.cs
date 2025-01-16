@@ -5,6 +5,11 @@ using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
+#if BENCHMARKING
+using System;
+using Unity.Profiling;
+#endif
+
 namespace PathfindingLagFix.Utilities;
 
 //[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
@@ -148,6 +153,19 @@ internal struct FindPathsToNodesJob : IJobFor
         return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, PathSizes[index]);
     }
 
+#if BENCHMARKING
+    private static T[] InitArray<T>(int count, Func<int, T> constructor)
+    {
+        var array = new T[count];
+        for (var i = 0; i < count; i++)
+            array[i] = constructor(i);
+        return array;
+    }
+
+    private static readonly ProfilerMarker[] IterationMarkers = InitArray(1024, i => new ProfilerMarker($"Iteration {i}"));
+    private static readonly ProfilerMarker IterationUnknown = new ProfilerMarker($"Iteration ?");
+#endif
+
     public void Execute(int index)
     {
         if (Canceled[0])
@@ -158,6 +176,10 @@ internal struct FindPathsToNodesJob : IJobFor
 
         // Lock the navmesh to ensure that we don't crash while updating the path here.
         NavMeshLock.BeginNavMeshRead();
+
+#if BENCHMARKING
+        using var markerAuto = index < IterationMarkers.Length ? IterationMarkers[index].Auto() : IterationUnknown.Auto();
+#endif
 
         var query = ThreadQueriesRef[ThreadIndex];
 
