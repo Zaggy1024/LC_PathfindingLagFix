@@ -1,3 +1,6 @@
+## Version 2.0.3 (Beta)
+- Added a workaround to prevent crashes that would occur when the navmesh is modified while pathfinding jobs are running.
+
 ## Version 2.0.2 (Beta)
 - Added a warning to the readme and description about potential crashes.
 
