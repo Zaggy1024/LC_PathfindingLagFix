@@ -156,6 +156,9 @@ internal static class AsyncDistancePathfinding
 
             for (int i = 0; i < candidateCount; i++)
             {
+                if (capDistanceSqr > 0 && (status.SortedPositions[i] - enemyPosition).sqrMagnitude > capDistanceSqr)
+                    break;
+
                 var nodeStatus = job.Statuses[i];
                 if (nodeStatus.GetStatus() == PathQueryStatus.InProgress)
                 {
@@ -181,12 +184,8 @@ internal static class AsyncDistancePathfinding
                         for (int segment = 1; segment < path.Length && segment < 16 && !pathObstructed; segment++)
                         {
                             var segmentEndPos = path[segment].position;
-                            if (capDistanceSqr > 0 && (segmentEndPos - enemyPosition).sqrMagnitude > capDistanceSqr)
-                                break;
-
                             if (Physics.Linecast(segmentStartPos, segmentEndPos, LINE_OF_SIGHT_LAYER_MASK))
                                 pathObstructed = true;
-
                             segmentStartPos = segmentEndPos;
                         }
                         if (pathObstructed)
