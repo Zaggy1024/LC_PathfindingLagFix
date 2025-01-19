@@ -1,4 +1,6 @@
-﻿using Unity.Collections.LowLevel.Unsafe;
+﻿using System.Collections.Generic;
+
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
@@ -38,7 +40,7 @@ internal struct FindPathsToNodesJob : IJobFor
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> PathSizes;
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<float> PathDistances;
 
-    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
+    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, int count, bool calculateDistance = false)
     {
         CreateQueries();
         ThreadQueriesRef = StaticThreadQueries;
@@ -50,7 +52,6 @@ internal struct FindPathsToNodesJob : IJobFor
         Origin = origin;
         CalculateDistance = calculateDistance;
 
-        var count = candidates.Length;
         EnsureCount(count);
 
         for (var i = 0; i < count; i++)
@@ -65,6 +66,16 @@ internal struct FindPathsToNodesJob : IJobFor
         Canceled[0] = false;
 
         NativeArray<Vector3>.Copy(candidates, Destinations, count);
+    }
+
+    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
+    {
+        Initialize(agentTypeID, areaMask, origin, candidates, candidates.Length, calculateDistance);
+    }
+
+    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, List<Vector3> candidates, bool calculateDistance = false)
+    {
+        Initialize(agentTypeID, areaMask, origin, NoAllocHelpers.ExtractArrayFromListT(candidates), candidates.Count, calculateDistance);
     }
 
     private static void CreateQueries()

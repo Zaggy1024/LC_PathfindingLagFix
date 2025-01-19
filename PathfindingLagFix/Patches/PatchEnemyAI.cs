@@ -305,11 +305,118 @@ internal static class PatchEnemyAI
             .ReleaseInstructions();
     }
 
+    private static bool IsPathToPlayerInvalid(EnemyAI enemy, int playerIndex)
+    {
+        var status = AsyncPlayerPathfinding.GetStatus(enemy);
+        if (!status.hasStarted)
+        {
+            status.StartJobs(enemy);
+            return true;
+        }
+
+        var jobIndex = status.GetJobIndexForPlayerIndex(playerIndex);
+        if (jobIndex == -1)
+            return true;
+
+        return status.PathsToPlayersJob.Statuses[jobIndex] != PathQueryStatus.Success;
+    }
+
+    private static void ResetPathToPlayerStatus(EnemyAI enemy)
+    {
+        if (!useAsync)
+            return;
+
+        var status = AsyncPlayerPathfinding.GetStatus(enemy);
+        status.ResetIfJobsHaveCompleted();
+        if (!status.hasStarted)
+            status.StartJobs(enemy);
+    }
+
+    [HarmonyTranspiler]
+    [HarmonyPatch(nameof(EnemyAI.TargetClosestPlayer))]
+    private static IEnumerable<CodeInstruction> TargetClosestPlayerTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    {
+        //   for (var i = 0; i < StartOfRound.Instance.connectedPlayersAmount + 1; i++) {
+        //     if (!PlayerIsTargetable(StartOfRound.Instance.allPlayerScripts[i]))
+        //       continue;
+        // -   if (!PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
+        // +   if (PatchEnemyAI.useAsync ? PatchEnemyAI.IsPathToPlayerInvalid(this, i) : !PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
+        //       continue;
+        //     if (requireLineOfSight && !CheckLineOfSightForPosition(StartOfRound.Instance.allPlayerScripts[i].gameplayCamera.transform.position, viewWidth, 40))
+        //       continue;
+        //     tempDist = Vector3.Distance(transform.position, StartOfRound.Instance.allPlayerScripts[i].transform.position);
+        //     if (tempDist < mostOptimalDistance) {
+        //       mostOptimalDistance = tempDist;
+        //       targetPlayer = StartOfRound.Instance.allPlayerScripts[i];
+        //     }
+        //   }
+        // + PatchEnemyAI.ResetPathToPlayerStatus(this);
+        var injector = new ILInjector(instructions)
+            .Find([
+                ILMatcher.Ldarg(0),
+                ILMatcher.Call(typeof(StartOfRound).GetMethod($"get_{nameof(StartOfRound.Instance)}")),
+                ILMatcher.Ldfld(typeof(StartOfRound).GetField(nameof(StartOfRound.allPlayerScripts))),
+                ILMatcher.Ldloc(),
+                ILMatcher.Opcode(OpCodes.Ldelem_Ref),
+                ILMatcher.Callvirt(Reflection.m_Component_get_transform),
+                ILMatcher.Callvirt(Reflection.m_Transform_get_position),
+                ILMatcher.Ldc(0),
+                ILMatcher.Ldc(0),
+                ILMatcher.Ldc(0),
+                ILMatcher.Call(Reflection.m_EnemyAI_PathIsIntersectedByLineOfSight),
+            ]);
+
+        if (!injector.IsValid)
+        {
+            Plugin.Instance.Logger.LogError($"Failed to find the call to check if the enemy can path to a player in {nameof(EnemyAI)}.{nameof(EnemyAI.TargetClosestPlayer)}().");
+            return instructions;
+        }
+
+        var loadIndexInstruction = injector.GetRelativeInstruction(3);
+        var skipAsyncLabel = generator.DefineLabel();
+        var skipSyncLabel = generator.DefineLabel();
+        injector
+            .Insert([
+                new(OpCodes.Ldsfld, typeof(PatchEnemyAI).GetField(nameof(useAsync), BindingFlags.NonPublic | BindingFlags.Static)),
+                new(OpCodes.Brfalse_S, skipAsyncLabel),
+                new(OpCodes.Ldarg_0),
+                loadIndexInstruction,
+                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(IsPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(int)])),
+                new(OpCodes.Br_S, skipSyncLabel),
+            ])
+            .AddLabel(skipAsyncLabel)
+            .GoToMatchEnd()
+            .AddLabel(skipSyncLabel);
+
+        injector
+            .Find([
+                ILMatcher.Ldarg(0),
+                ILMatcher.Ldfld(Reflection.f_EnemyAI_targetPlayer),
+            ]);
+
+        if (!injector.IsValid)
+        {
+            Plugin.Instance.Logger.LogError($"Failed to find the check for whether a target player was found in {nameof(EnemyAI)}.{nameof(EnemyAI.TargetClosestPlayer)}().");
+            return instructions;
+        }
+
+        var skipResettingStatusLabel = generator.DefineLabel();
+        return injector
+            .Insert([
+                new(OpCodes.Ldarg_0),
+                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(ResetPathToPlayerStatus), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
+            ])
+            .AddLabel(skipResettingStatusLabel)
+            .PrintContext(100, "Injected TargetClosestPlayer")
+            .ReleaseInstructions();
+    }
+
     [HarmonyPostfix]
     [HarmonyPatch(nameof(EnemyAI.OnDestroy))]
     private static void OnDestroyPostfix(EnemyAI __instance)
     {
-        AsyncRoamingPathfinding.RemoveStatus(__instance);
         AsyncDistancePathfinding.RemoveStatus(__instance);
+        AsyncPlayerPathfinding.RemoveStatus(__instance);
+        AsyncRoamingPathfinding.RemoveStatus(__instance);
     }
 }
