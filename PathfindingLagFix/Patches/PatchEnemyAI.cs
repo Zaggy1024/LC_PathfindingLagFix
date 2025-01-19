@@ -407,7 +407,6 @@ internal static class PatchEnemyAI
                 new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(ResetPathToPlayerStatus), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
             ])
             .AddLabel(skipResettingStatusLabel)
-            .PrintContext(100, "Injected TargetClosestPlayer")
             .ReleaseInstructions();
     }
 
