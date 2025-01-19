@@ -221,10 +221,7 @@ internal static class AsyncDistancePathfinding
         job.Canceled[0] = true;
 
         if (result == -1 && status.SortedNodes.Length > 0)
-        {
-            Plugin.Instance.Logger.LogInfo($"Defaulting to result = 0");
             result = 0;
-        }
 
         if (result >= 0)
         {
