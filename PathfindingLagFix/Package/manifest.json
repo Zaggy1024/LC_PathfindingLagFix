@@ -1,6 +1,6 @@
 {
     "name": "PathfindingLagFix_Beta",
-    "version_number": "2.0.3",
+    "version_number": "2.0.4",
     "website_url": "https://github.com/Zaggy1024/LC_PathfindingLagFix/",
     "description": "Improves performance of Lethal Company AI to increase frame rates. BETA VERSION. MAY CAUSE CRASHES.",
     "dependencies": [

@@ -1,3 +1,7 @@
+## Version 2.0.4 (Beta)
+- Added a patch to prevent stutters when enemies are trying to target players in large lobbies.
+- Removed the crash warning from the readme, as 2.0.3 appears to have remained stable.
+
 ## Version 2.0.3 (Beta)
 - Added a workaround to prevent crashes that would occur when the navmesh is modified while pathfinding jobs are running.
 
