@@ -4,7 +4,7 @@ namespace PathfindingLagFix.Utilities;
 
 internal class ReadersWriterLock
 {
-    private object conditionVariable = new();
+    private readonly object conditionVariable = new();
 
     private int readersActive = 0;
     private int writersWaiting = 0;
