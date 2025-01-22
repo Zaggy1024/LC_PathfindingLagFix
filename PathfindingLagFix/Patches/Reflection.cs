@@ -26,6 +26,7 @@ namespace PathfindingLagFix.Patches
         public static readonly FieldInfo f_EnemyAI_favoriteSpot = typeof(EnemyAI).GetField(nameof(EnemyAI.favoriteSpot));
         public static readonly FieldInfo f_EnemyAI_searchCoroutine = typeof(EnemyAI).GetField(nameof(EnemyAI.searchCoroutine));
         public static readonly FieldInfo f_EnemyAI_currentSearch = typeof(EnemyAI).GetField(nameof(EnemyAI.currentSearch));
+        public static readonly FieldInfo f_EnemyAI_currentBehaviourStateIndex = typeof(EnemyAI).GetField(nameof(EnemyAI.currentBehaviourStateIndex));
 
         public static readonly MethodInfo m_MonoBehaviour_StartCoroutine = typeof(MonoBehaviour).GetMethod(nameof(MonoBehaviour.StartCoroutine), [typeof(IEnumerator)]);
         public static readonly MethodInfo m_MonoBehaviour_StopCoroutine = typeof(MonoBehaviour).GetMethod(nameof(MonoBehaviour.StopCoroutine), [typeof(Coroutine)]);
