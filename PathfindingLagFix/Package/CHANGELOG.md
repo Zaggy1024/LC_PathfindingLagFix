@@ -1,3 +1,8 @@
+## Version 2.0.5 (Beta)
+- Moved some functionality over to the PathfindingLib library to allow other mods to make use of it without hard depending on PathfindingLagFix.
+- Removed the crash warning from the mod description in the manifest.
+- Removed a spammy transpiler log when starting up.
+
 ## Version 2.0.4 (Beta)
 - Added a patch to prevent stutters when enemies are trying to target players in large lobbies.
 - Removed the crash warning from the readme, as 2.0.3 appears to have remained stable.
