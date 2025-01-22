@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -64,7 +64,7 @@ internal static class PatchDoublewingAI
             return instructions;
         }
 
-        var skipSynchronousNodeSelectionLabel = (Label)injector.LastMatchedInstruction.operand;
+        var skipAssigningDestinationLabel = (Label)injector.LastMatchedInstruction.operand;
         injector
             .GoToMatchEnd()
             .Find([
@@ -86,8 +86,8 @@ internal static class PatchDoublewingAI
         // -   Transform targetNode = ChooseFarthestNodeFromPosition(playerInLineOfSight.transform.position, avoidLineOfSight: false, UnityEngine.Random.Range(0, allAINodes.Length / 2));
         // +   Transform targetNode;
         // +   if (PatchDoublewingAI.useAsync) {
-        // +     targetNode = PatchDoublewingAI.ChoosePlayerEvasionNodeAsync(this, playerInLineOfSight)
-        // +     if (targetNode != null)
+        // +     targetNode = PatchDoublewingAI.ChoosePlayerEvasionNodeAsync(this, playerInLineOfSight);
+        // +     if (targetNode == null)
         // +       goto SkipAssigningDestination;
         // +     goto SkipSynchronousNodeSelection;
         // +   }
@@ -95,15 +95,14 @@ internal static class PatchDoublewingAI
         // +   targetNode = ChooseFarthestNodeFromPosition(playerInLineOfSight.transform.position, avoidLineOfSight: false, UnityEngine.Random.Range(0, allAINodes.Length / 2));
         // +   SkipSynchronousNodeSelection:
         //
-        //     if (SetDestinationToPosition(targetNode.position))
-        //     {
+        //     if (SetDestinationToPosition(targetNode.position)) {
         //       avoidingPlayer = UnityEngine.Random.Range(10, 20);
         //       StopSearch(roamGlide);
         //     }
         // +   SkipAssigningDestination:
         //   }
-        var skipChoosingNodeLabel = generator.DefineLabel();
-        injector.GetRelativeInstruction(2).labels.Add(skipChoosingNodeLabel);
+        var skipSynchronousNodeSelectionLabel = generator.DefineLabel();
+        injector.GetRelativeInstruction(2).labels.Add(skipSynchronousNodeSelectionLabel);
 
         var skipAsyncLabel = generator.DefineLabel();
         return injector
@@ -118,8 +117,8 @@ internal static class PatchDoublewingAI
                 targetNodeStoreInstruction,
                 new(OpCodes.Ldnull),
                 new(OpCodes.Call, Reflection.m_Object_op_Equality),
-                new(OpCodes.Brtrue_S, skipSynchronousNodeSelectionLabel),
-                new(OpCodes.Br, skipChoosingNodeLabel),
+                new(OpCodes.Brtrue_S, skipAssigningDestinationLabel),
+                new(OpCodes.Br, skipSynchronousNodeSelectionLabel),
             ])
             .AddLabel(skipAsyncLabel)
             .ReleaseInstructions();
