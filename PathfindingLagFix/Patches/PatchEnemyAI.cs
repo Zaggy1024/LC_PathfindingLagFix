@@ -226,8 +226,8 @@ internal static class PatchEnemyAI
         }
 
         // - else if (agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        // - else if (!PatchEnemyAI.useAsync && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        //    EliminateNodeFromSearch(i);
+        // + else if (!PatchEnemyAI.useAsync && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
+        //     EliminateNodeFromSearch(i);
         var skipEliminateNodeFromSyncLabel = generator.DefineLabel();
         var existingContinueLabel = (Label)injector.LastMatchedInstruction.operand;
         injector
