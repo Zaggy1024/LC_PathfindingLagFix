@@ -137,7 +137,11 @@ internal static class AsyncDistancePathfinding
     internal static IEnumerator ChooseFarthestNodeFromPosition(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
         if (!enemy.agent.isOnNavMesh)
+        {
+            status.ChosenNode = enemy.transform;
+            status.MostOptimalDistance = 0;
             yield break;
+        }
 
         var candidateCount = enemy.allAINodes.Length;
         StartJobs(enemy, status, target, candidateCount, farthestFirst);
