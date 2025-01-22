@@ -1,6 +1,8 @@
 using Unity.Jobs;
 using UnityEngine;
 
+using PathfindingLib.Utilities;
+
 namespace PathfindingLagFix.Utilities;
 
 internal static class AsyncRoamingPathfinding
@@ -26,7 +28,7 @@ internal static class AsyncRoamingPathfinding
         {
             var search = enemy.currentSearch;
             var agent = enemy.agent;
-            var position = enemy.agent.GetAgentPosition();
+            var position = enemy.agent.GetPathOrigin();
 
             var nodes = search.unsearchedNodes;
             nodeCount = nodes.Count;

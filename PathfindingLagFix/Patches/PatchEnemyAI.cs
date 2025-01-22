@@ -7,6 +7,7 @@ using UnityEngine.Experimental.AI;
 
 using PathfindingLagFix.Utilities;
 using PathfindingLagFix.Utilities.IL;
+using PathfindingLib.Utilities;
 
 namespace PathfindingLagFix.Patches;
 
@@ -42,8 +43,8 @@ internal static class PatchEnemyAI
             StopPreviousJobAndStartNewOne(enemy);
 
         var pathIndex = status.GetJobIndex(index);
-        var pathStatus = status.PathsFromEnemyJob.Statuses[pathIndex].GetStatus();
-        if (!enemy.currentSearch.startedSearchAtSelf && status.PathsFromSearchStartJob.Statuses[pathIndex].GetStatus() == PathQueryStatus.InProgress)
+        var pathStatus = status.PathsFromEnemyJob.Statuses[pathIndex].GetResult();
+        if (!enemy.currentSearch.startedSearchAtSelf && status.PathsFromSearchStartJob.Statuses[pathIndex].GetResult() == PathQueryStatus.InProgress)
             pathStatus = PathQueryStatus.InProgress;
         return pathStatus;
     }

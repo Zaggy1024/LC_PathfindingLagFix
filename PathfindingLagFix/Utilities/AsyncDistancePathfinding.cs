@@ -4,6 +4,8 @@ using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
+using PathfindingLib.Utilities;
+
 namespace PathfindingLagFix.Utilities;
 
 internal static class AsyncDistancePathfinding
@@ -95,7 +97,7 @@ internal static class AsyncDistancePathfinding
     private static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst)
     {
         var agent = enemy.agent;
-        var position = agent.GetAgentPosition();
+        var position = agent.GetPathOrigin();
         status.SortNodes(enemy, target, farthestFirst);
 
         ref var job = ref status.Job;
@@ -160,13 +162,13 @@ internal static class AsyncDistancePathfinding
                     break;
 
                 var nodeStatus = job.Statuses[i];
-                if (nodeStatus.GetStatus() == PathQueryStatus.InProgress)
+                if (nodeStatus.GetResult() == PathQueryStatus.InProgress)
                 {
                     complete = false;
                     break;
                 }
 
-                if (nodeStatus.GetStatus() == PathQueryStatus.Success)
+                if (nodeStatus.GetResult() == PathQueryStatus.Success)
                 {
                     var path = job.GetPath(i);
                     if (path[0].polygon.IsNull())
@@ -208,7 +210,7 @@ internal static class AsyncDistancePathfinding
             {
                 for (int i = 0; i < candidateCount; i++)
                 {
-                    if (job.Statuses[i].GetStatus() == PathQueryStatus.Success)
+                    if (job.Statuses[i].GetResult() == PathQueryStatus.Success)
                     {
                         result = i;
                         break;

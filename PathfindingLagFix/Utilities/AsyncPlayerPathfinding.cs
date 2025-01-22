@@ -1,9 +1,10 @@
 ﻿using System.Collections.Generic;
 
-using GameNetcodeStuff;
 using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
+
+using PathfindingLib.Utilities;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -30,7 +31,7 @@ internal static class AsyncPlayerPathfinding
             hasStarted = true;
 
             var agent = enemy.agent;
-            var position = enemy.agent.GetAgentPosition();
+            var position = enemy.agent.GetPathOrigin();
 
             var allPlayers = StartOfRound.Instance.allPlayerScripts;
             if (playerJobIndices.Length != allPlayers.Length)

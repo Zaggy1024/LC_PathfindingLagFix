@@ -3,9 +3,12 @@
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
+
+using PathfindingLib.API;
+using PathfindingLib.Jobs;
+using PathfindingLib.Utilities;
 
 #if BENCHMARKING
 using System;
@@ -14,7 +17,6 @@ using Unity.Profiling;
 
 namespace PathfindingLagFix.Utilities;
 
-//[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 internal struct FindPathsToNodesJob : IJobFor
 {
     [NativeDisableContainerSafetyRestriction] private static NativeArray<NavMeshQuery> StaticThreadQueries;
@@ -42,8 +44,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
     public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, int count, bool calculateDistance = false)
     {
-        CreateQueries();
-        ThreadQueriesRef = StaticThreadQueries;
+        ThreadQueriesRef = PathfindingJobSharedResources.GetPerThreadQueriesArray();
 
         CreateFixedArrays();
 
@@ -78,35 +79,6 @@ internal struct FindPathsToNodesJob : IJobFor
         Initialize(agentTypeID, areaMask, origin, NoAllocHelpers.ExtractArrayFromListT(candidates), candidates.Count, calculateDistance);
     }
 
-    private static void CreateQueries()
-    {
-        var threadCount = JobsUtility.ThreadIndexCount;
-        if (StaticThreadQueries.Length >= threadCount)
-            return;
-
-        Application.quitting -= DisposeQueries;
-
-        var newQueries = new NativeArray<NavMeshQuery>(threadCount, Allocator.Persistent);
-        for (var i = 0; i < StaticThreadQueries.Length; i++)
-            newQueries[i] = StaticThreadQueries[i];
-        for (var i = StaticThreadQueries.Length; i < threadCount; i++)
-            newQueries[i] = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.Persistent, Pathfinding.MAX_PATH_SIZE);
-        StaticThreadQueries.Dispose();
-        StaticThreadQueries = newQueries;
-
-        Application.quitting += DisposeQueries;
-    }
-
-    private static void DisposeQueries()
-    {
-        foreach (var query in StaticThreadQueries)
-            query.Dispose();
-
-        StaticThreadQueries.Dispose();
-
-        Application.quitting -= DisposeQueries;
-    }
-
     private void CreateFixedArrays()
     {
         Canceled = new(1, Allocator.Persistent);
@@ -130,7 +102,7 @@ internal struct FindPathsToNodesJob : IJobFor
         Destinations = new(count, Allocator.Persistent);
 
         Statuses = new(count, Allocator.Persistent);
-        Paths = new(count * Pathfinding.MAX_STRAIGHT_PATH, Allocator.Persistent);
+        Paths = new(count * NavMeshQueryUtils.RecommendedCornerCount, Allocator.Persistent);
         PathSizes = new(count, Allocator.Persistent);
         PathDistances = new(count, Allocator.Persistent);
     }
@@ -156,12 +128,12 @@ internal struct FindPathsToNodesJob : IJobFor
 
     public NativeArray<NavMeshLocation> GetPathBuffer(int index)
     {
-        return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, Pathfinding.MAX_STRAIGHT_PATH);
+        return Paths.GetSubArray(index * NavMeshQueryUtils.RecommendedCornerCount, NavMeshQueryUtils.RecommendedCornerCount);
     }
 
     public NativeArray<NavMeshLocation> GetPath(int index)
     {
-        return Paths.GetSubArray(index * Pathfinding.MAX_STRAIGHT_PATH, PathSizes[index]);
+        return Paths.GetSubArray(index * NavMeshQueryUtils.RecommendedCornerCount, PathSizes[index]);
     }
 
 #if BENCHMARKING
@@ -186,7 +158,7 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         // Lock the navmesh to ensure that we don't crash while updating the path here.
-        NavMeshLock.BeginNavMeshRead();
+        NavMeshLock.BeginRead();
 
 #if BENCHMARKING
         using var markerAuto = index < IterationMarkers.Length ? IterationMarkers[index].Auto() : IterationUnknown.Auto();
@@ -200,7 +172,7 @@ internal struct FindPathsToNodesJob : IJobFor
         if (!query.IsValid(origin))
         {
             Statuses[index] = PathQueryStatus.Failure;
-            NavMeshLock.EndNavMeshRead();
+            NavMeshLock.EndRead();
             return;
         }
 
@@ -210,28 +182,28 @@ internal struct FindPathsToNodesJob : IJobFor
         if (!query.IsValid(destinationLocation))
         {
             Statuses[index] = PathQueryStatus.Failure;
-            NavMeshLock.EndNavMeshRead();
+            NavMeshLock.EndRead();
             return;
         }
 
         // Find the shortest path through the polygons of the navmesh.
         var status = query.BeginFindPath(origin, destinationLocation, AreaMask);
-        if (status.GetStatus() == PathQueryStatus.Failure)
+        if (status.GetResult() == PathQueryStatus.Failure)
         {
             Statuses[index] = status;
-            NavMeshLock.EndNavMeshRead();
+            NavMeshLock.EndRead();
             return;
         }
 
-        while (status.GetStatus() == PathQueryStatus.InProgress)
+        while (status.GetResult() == PathQueryStatus.InProgress)
             status = query.UpdateFindPath(int.MaxValue, out int _);
 
         status = query.EndFindPath(out var pathNodesSize);
 
-        if (status.GetStatus() != PathQueryStatus.Success)
+        if (status.GetResult() != PathQueryStatus.Success)
         {
             Statuses[index] = status;
-            NavMeshLock.EndNavMeshRead();
+            NavMeshLock.EndRead();
             return;
         }
 
@@ -239,15 +211,15 @@ internal struct FindPathsToNodesJob : IJobFor
         query.GetPathResult(pathNodes);
 
         // Calculate straight path from polygons.
-        status = Pathfinding.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize) | status.GetDetail();
+        status = NavMeshQueryUtils.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize) | status.GetDetail();
 
         // Now that we have a copy of all the navmesh data we need, release the navmesh lock.
-        NavMeshLock.EndNavMeshRead();
+        NavMeshLock.EndRead();
 
         PathSizes[index] = pathSize;
         pathNodes.Dispose();
 
-        if (status.GetStatus() != PathQueryStatus.Success)
+        if (status.GetResult() != PathQueryStatus.Success)
         {
             Statuses[index] = status;
             return;
