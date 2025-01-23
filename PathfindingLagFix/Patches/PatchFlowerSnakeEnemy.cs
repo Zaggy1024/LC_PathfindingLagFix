@@ -72,6 +72,82 @@ internal static class PatchFlowerSnakeEnemy
             .ReleaseInstructions();
     }
 
+    private static Transform GetClosestNodeToWarpTo(FlowerSnakeEnemy flowerSnake)
+    {
+        var allNodes = flowerSnake.allAINodes;
+        if (allNodes.Length == 0)
+            return flowerSnake.transform;
+
+        var position = flowerSnake.transform.position;
+        var closestNode = allNodes[0].transform;
+        var closestDistanceSqr = (closestNode.position - position).sqrMagnitude;
+
+        for (var i = 1; i < allNodes.Length; i++)
+        {
+            var node = allNodes[i].transform;
+            var distanceSqr = (node.position - position).sqrMagnitude;
+            if (distanceSqr < closestDistanceSqr)
+            {
+                closestNode = node;
+                closestDistanceSqr = distanceSqr;
+            }
+        }
+
+        return closestNode;
+    }
+
+    [HarmonyTranspiler]
+    [HarmonyPatch(nameof(FlowerSnakeEnemy.StopClingingOnLocalClient))]
+    private static IEnumerable<CodeInstruction> StopClingingOnLocalClientTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    {
+        //   if (!RoundManager.Instance.GotNavMeshPositionResult)
+        // -   navMeshPosition = ChooseClosestNodeToPosition(transform.position).transform.position;
+        // +   navMeshPosition = (PatchFlowerSnakeEnemy.useAsync ? PatchFlowerSnakeEnemy.GetClosestNodeToWarpTo(this) : ChooseClosestNodeToPosition(transform.position)).transform.position;
+        var injector = new ILInjector(instructions)
+            .Find([
+                ILMatcher.Call(typeof(RoundManager).GetMethod($"get_{nameof(RoundManager.Instance)}")),
+                ILMatcher.Ldfld(typeof(RoundManager).GetField(nameof(RoundManager.GotNavMeshPositionResult))),
+                ILMatcher.Opcode(OpCodes.Brtrue),
+            ]);
+
+        if (!injector.IsValid)
+        {
+            Plugin.Instance.Logger.LogError($"Failed to find the check for a valid navmesh position to warp to in {nameof(FlowerSnakeEnemy)}.{nameof(FlowerSnakeEnemy.StopClingingOnLocalClient)}().");
+            return instructions;
+        }
+
+        injector
+            .Find([
+                ILMatcher.Call(Reflection.m_EnemyAI_ChooseClosestNodeToPosition),
+                ILMatcher.Callvirt(Reflection.m_Component_get_transform),
+                ILMatcher.Callvirt(Reflection.m_Transform_get_position),
+                ILMatcher.Stloc(),
+            ])
+            .GoToPush(3);
+
+        if (!injector.IsValid)
+        {
+            Plugin.Instance.Logger.LogError($"Failed to find the call to choose the closest node to warp to in {nameof(FlowerSnakeEnemy)}.{nameof(FlowerSnakeEnemy.StopClingingOnLocalClient)}().");
+            return instructions;
+        }
+
+        var skipVanillaLabel = generator.DefineLabel();
+        var skipAsyncLabel = generator.DefineLabel();
+        return injector
+            .Insert([
+                new(OpCodes.Ldsfld, typeof(PatchFlowerSnakeEnemy).GetField(nameof(useAsync), BindingFlags.NonPublic | BindingFlags.Static)),
+                new(OpCodes.Brfalse_S, skipAsyncLabel),
+                new(OpCodes.Ldarg_0),
+                new(OpCodes.Call, typeof(PatchFlowerSnakeEnemy).GetMethod(nameof(GetClosestNodeToWarpTo), BindingFlags.NonPublic | BindingFlags.Static, [typeof(FlowerSnakeEnemy)])),
+                new(OpCodes.Br, skipVanillaLabel),
+            ])
+            .AddLabel(skipAsyncLabel)
+            .GoToMatchEnd()
+            .Forward(1)
+            .AddLabel(skipVanillaLabel)
+            .ReleaseInstructions();
+    }
+
     [HarmonyPostfix]
     [HarmonyPatch(nameof(FlowerSnakeEnemy.OnEnable))]
     private static void OnEnablePostfix(FlowerSnakeEnemy __instance)
