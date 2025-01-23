@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 
 using Unity.Jobs;
@@ -161,7 +162,7 @@ internal static class AsyncDistancePathfinding
         {
             yield return null;
             bool complete = true;
-            var pathsLeft = offset;
+            var pathsLeft = Math.Min(offset, candidateCount - 1);
 
             var enemyPosition = enemy.transform.position;
 
