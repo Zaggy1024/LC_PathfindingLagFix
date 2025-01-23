@@ -1,3 +1,7 @@
+## Version 2.0.6 (Beta)
+- Added some tulip snake patches to prevent stutters, especially just after they have dismounting a player.
+- Prevented some rare situations where enemies may be permanently blocked from doing distance-based pathfinding.
+
 ## Version 2.0.5 (Beta)
 - Moved some functionality over to the PathfindingLib library to allow other mods to make use of it without hard depending on PathfindingLagFix.
 - Removed the crash warning from the mod description in the manifest.
