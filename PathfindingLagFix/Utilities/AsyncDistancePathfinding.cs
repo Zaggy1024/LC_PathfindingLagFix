@@ -127,7 +127,7 @@ internal static class AsyncDistancePathfinding
 
     private static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
-        return StartChoosingNode(enemy, searchTypeID, status => ChooseFarthestNodeFromPosition(enemy, status, target, farthestFirst, avoidLineOfSight, offset, capDistance));
+        return StartChoosingNode(enemy, searchTypeID, status => ChooseNodeCoroutine(enemy, status, target, farthestFirst, avoidLineOfSight, offset, capDistance));
     }
 
     internal static EnemyDistancePathfindingStatus StartChoosingFarthestNodeFromPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
@@ -140,7 +140,7 @@ internal static class AsyncDistancePathfinding
         return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: false, avoidLineOfSight, offset, capDistance);
     }
 
-    internal static IEnumerator ChooseFarthestNodeFromPosition(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
+    internal static IEnumerator ChooseNodeCoroutine(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
     {
         if (enemy.allAINodes.Length == 0 || !enemy.agent.isOnNavMesh)
         {
