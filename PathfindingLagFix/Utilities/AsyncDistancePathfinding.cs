@@ -10,8 +10,6 @@ namespace PathfindingLagFix.Utilities;
 
 internal static class AsyncDistancePathfinding
 {
-    private const int LINE_OF_SIGHT_LAYER_MASK = 0x40000;
-
     internal const float DEFAULT_CAP_DISTANCE = 60;
 
     private static readonly IDMap<EnemyDistancePathfindingStatus> Statuses = new(() => new EnemyDistancePathfindingStatus(), 1);
@@ -94,7 +92,7 @@ internal static class AsyncDistancePathfinding
         }
     }
 
-    private static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst)
+    internal static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst)
     {
         var agent = enemy.agent;
         var position = agent.GetPathOrigin();
@@ -108,7 +106,9 @@ internal static class AsyncDistancePathfinding
         return status;
     }
 
-    internal static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
+    internal delegate IEnumerator NodeSelectionCoroutine(EnemyDistancePathfindingStatus status);
+
+    internal static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, NodeSelectionCoroutine coroutine)
     {
         var status = Statuses[enemy.thisEnemyIndex];
         if (status.CurrentSearchTypeID == searchTypeID)
@@ -120,8 +120,13 @@ internal static class AsyncDistancePathfinding
         }
 
         status.CurrentSearchTypeID = searchTypeID;
-        status.Coroutine = enemy.StartCoroutine(ChooseFarthestNodeFromPosition(enemy, status, target, farthestFirst, avoidLineOfSight, offset, capDistance));
+        status.Coroutine = enemy.StartCoroutine(coroutine(status));
         return status;
+    }
+
+    private static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
+    {
+        return StartChoosingNode(enemy, searchTypeID, status => ChooseFarthestNodeFromPosition(enemy, status, target, farthestFirst, avoidLineOfSight, offset, capDistance));
     }
 
     internal static EnemyDistancePathfindingStatus StartChoosingFarthestNodeFromPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
@@ -181,22 +186,8 @@ internal static class AsyncDistancePathfinding
                         continue;
                     }
 
-                    if (avoidLineOfSight && path.Length > 1)
-                    {
-                        // Check if any segment of the path enters a player's line of sight.
-                        bool pathObstructed = false;
-                        var segmentStartPos = path[0].position;
-                        
-                        for (int segment = 1; segment < path.Length && segment < 16 && !pathObstructed; segment++)
-                        {
-                            var segmentEndPos = path[segment].position;
-                            if (Physics.Linecast(segmentStartPos, segmentEndPos, LINE_OF_SIGHT_LAYER_MASK))
-                                pathObstructed = true;
-                            segmentStartPos = segmentEndPos;
-                        }
-                        if (pathObstructed)
-                            continue;
-                    }
+                    if (avoidLineOfSight && LineOfSight.PathIsBlockedByLineOfSight(path))
+                        continue;
 
                     if (pathsLeft-- == 0)
                     {
