@@ -23,6 +23,12 @@ The enemy behaviors currently patched to run their pathfinding off the main thre
     - The search for a hiding spot near a player when they are targetable
 - Spore lizard:
     - The search for a hiding spot away from a player when it is spotted
+- Tulip snake:
+    - Selection of a node to run away to after dismounting the player
 - Manticoil:
     - The search for a node to fly to when it is disturbed by a player at close range
 - More to come!
+
+Other patches include:
+- Tulip snake:
+    - A patch to prevent small stutters due to unnecessary calls to `Object.FindObjectsByType()`
