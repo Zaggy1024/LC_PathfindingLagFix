@@ -1,13 +1,14 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 
 using PathfindingLagFix.Patches;
+using PathfindingLib;
 
 namespace PathfindingLagFix
 {
     [BepInPlugin(MOD_UNIQUE_NAME, MOD_NAME, MOD_VERSION)]
-    [BepInDependency("Zaggy1024.PathfindingLib", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency(PathfindingLibPlugin.PluginGUID, BepInDependency.DependencyFlags.HardDependency)]
     public class Plugin : BaseUnityPlugin
     {
         public const string MOD_NAME = "PathfindingLagFix";
