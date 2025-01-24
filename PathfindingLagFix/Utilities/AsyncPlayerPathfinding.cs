@@ -25,6 +25,7 @@ internal static class AsyncPlayerPathfinding
         internal bool hasStarted = false;
         private int[] playerJobIndices = [];
         private readonly List<Vector3> validPlayerPositions = [];
+        private bool lastRetrievedStatusWasInProgress = false;
 
         internal void StartJobs(EnemyAI enemy)
         {
@@ -38,19 +39,20 @@ internal static class AsyncPlayerPathfinding
                 playerJobIndices = new int[allPlayers.Length];
 
             validPlayerPositions.Clear();
+            lastRetrievedStatusWasInProgress = false;
+
             var jobIndex = 0;
             for (var i = 0; i < allPlayers.Length; i++)
             {
                 var player = allPlayers[i];
-                if (enemy.PlayerIsTargetable(player))
-                {
-                    playerJobIndices[i] = jobIndex++;
-                    validPlayerPositions.Add(player.transform.position);
-                }
-                else
+                if (!enemy.PlayerIsTargetable(player))
                 {
                     playerJobIndices[i] = -1;
+                    continue;
                 }
+
+                playerJobIndices[i] = jobIndex++;
+                validPlayerPositions.Add(player.transform.position);
             }
 
             PathsToPlayersJob.Initialize(agent.agentTypeID, agent.areaMask, position, validPlayerPositions);
@@ -58,25 +60,38 @@ internal static class AsyncPlayerPathfinding
             PathsToPlayersJobHandle = PathsToPlayersJob.ScheduleByRef(validPlayerPositions.Count, default);
         }
 
-        internal void ResetIfJobsHaveCompleted()
+        internal bool IsPathValid(int playerIndex)
+        {
+            if (!hasStarted)
+                return false;
+
+            if (playerIndex >= playerJobIndices.Length)
+                return false;
+
+            var index = playerJobIndices[playerIndex];
+
+            if (index < 0)
+                return false;
+
+            var status = PathsToPlayersJob.Statuses[index].GetResult();
+            if (status == PathQueryStatus.InProgress)
+            {
+                lastRetrievedStatusWasInProgress = true;
+                return false;
+            }
+
+            return status == PathQueryStatus.Success;
+        }
+
+        internal void ResetIfResultsHaveBeenUsed()
         {
             if (!hasStarted)
                 return;
 
-            for (var i = 0; i < validPlayerPositions.Count; i++)
-            {
-                if (PathsToPlayersJob.Statuses[i] == PathQueryStatus.InProgress)
-                    return;
-            }
+            if (lastRetrievedStatusWasInProgress && validPlayerPositions.Count > 0)
+                return;
 
             hasStarted = false;
-        }
-
-        internal int GetJobIndexForPlayerIndex(int playerIndex)
-        {
-            if (playerIndex >= playerJobIndices.Length)
-                return -1;
-            return playerJobIndices[playerIndex];
         }
 
         ~EnemyToPlayerPathfindingStatus()

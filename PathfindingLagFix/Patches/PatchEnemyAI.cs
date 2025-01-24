@@ -1,8 +1,10 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
 using HarmonyLib;
+using UnityEngine;
 using UnityEngine.Experimental.AI;
 
 using PathfindingLagFix.Utilities;
@@ -315,22 +317,22 @@ internal static class PatchEnemyAI
             return true;
         }
 
-        var jobIndex = status.GetJobIndexForPlayerIndex(playerIndex);
-        if (jobIndex == -1)
-            return true;
-
-        return status.PathsToPlayersJob.Statuses[jobIndex] != PathQueryStatus.Success;
+        return !status.IsPathValid(playerIndex);
     }
 
     private static void ResetPathToPlayerStatus(EnemyAI enemy)
     {
-        if (!useAsync)
-            return;
-
         var status = AsyncPlayerPathfinding.GetStatus(enemy);
-        status.ResetIfJobsHaveCompleted();
-        if (!status.hasStarted)
+        status.ResetIfResultsHaveBeenUsed();
+
+        if (!status.hasStarted && useAsync)
             status.StartJobs(enemy);
+    }
+
+    private static IEnumerator ResetPathToPlayerStatusAtEndOfFrame(EnemyAI enemy)
+    {
+        yield return new WaitForEndOfFrame();
+        ResetPathToPlayerStatus(enemy);
     }
 
     [HarmonyTranspiler]
@@ -351,7 +353,7 @@ internal static class PatchEnemyAI
         //       targetPlayer = StartOfRound.Instance.allPlayerScripts[i];
         //     }
         //   }
-        // + PatchEnemyAI.ResetPathToPlayerStatus(this);
+        // + StartCoroutine(PatchEnemyAI.ResetPathToPlayerStatusAtEndOfFrame(this));
         var injector = new ILInjector(instructions)
             .Find([
                 ILMatcher.Ldarg(0),
@@ -405,7 +407,10 @@ internal static class PatchEnemyAI
         return injector
             .Insert([
                 new(OpCodes.Ldarg_0),
-                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(ResetPathToPlayerStatus), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
+                new(OpCodes.Ldarg_0),
+                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(ResetPathToPlayerStatusAtEndOfFrame), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
+                new(OpCodes.Call, Reflection.m_MonoBehaviour_StartCoroutine),
+                new(OpCodes.Pop),
             ])
             .AddLabel(skipResettingStatusLabel)
             .ReleaseInstructions();
