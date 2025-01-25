@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
@@ -196,7 +196,11 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         while (status.GetResult() == PathQueryStatus.InProgress)
-            status = query.UpdateFindPath(int.MaxValue, out int _);
+        {
+            status = query.UpdateFindPath(NavMeshLock.RecommendedUpdateFindPathIterationCount, out int _);
+
+            NavMeshLock.YieldRead();
+        }
 
         status = query.EndFindPath(out var pathNodesSize);
 
