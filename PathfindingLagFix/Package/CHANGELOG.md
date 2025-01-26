@@ -1,3 +1,7 @@
+## Version 2.0.7 (Beta)
+- Reworked the player targeting patch to prevent failure to select a target player in some scenarios.
+- Reduced delays in pausing pathfinding jobs to allow the main thread to run as fast as possible.
+
 ## Version 2.0.6 (Beta)
 - Added some tulip snake patches to prevent stutters, especially just after they have dismounting a player.
 - Prevented some rare situations where enemies may be permanently blocked from doing distance-based pathfinding.
