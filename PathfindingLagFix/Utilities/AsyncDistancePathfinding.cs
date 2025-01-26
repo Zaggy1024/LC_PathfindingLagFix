@@ -216,7 +216,7 @@ internal static class AsyncDistancePathfinding
             }
         }
 
-        job.Canceled[0] = true;
+        job.Cancel();
 
         if (result == -1 && status.SortedNodes.Length > 0)
             result = 0;

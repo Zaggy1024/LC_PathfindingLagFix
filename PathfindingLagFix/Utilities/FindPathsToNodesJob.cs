@@ -29,13 +29,13 @@ internal struct FindPathsToNodesJob : IJobFor
 
     [ReadOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshQuery> ThreadQueriesRef;
 
-    [ReadOnly] internal int AgentTypeID;
-    [ReadOnly] internal int AreaMask;
-    [ReadOnly] internal Vector3 Origin;
-    [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<Vector3> Destinations;
-    [ReadOnly] internal bool CalculateDistance;
+    [ReadOnly] private int AgentTypeID;
+    [ReadOnly] private int AreaMask;
+    [ReadOnly] private Vector3 Origin;
+    [ReadOnly, NativeDisableContainerSafetyRestriction] private NativeArray<Vector3> Destinations;
+    [ReadOnly] private bool CalculateDistance;
 
-    [ReadOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<bool> Canceled;
+    [ReadOnly, NativeDisableContainerSafetyRestriction] private NativeArray<bool> Canceled;
 
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<PathQueryStatus> Statuses;
     [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshLocation> Paths;
