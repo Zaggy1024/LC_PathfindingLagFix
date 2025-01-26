@@ -16,12 +16,13 @@ namespace PathfindingLagFix.Patches;
 [HarmonyPatch(typeof(EnemyAI))]
 internal static class PatchEnemyAI
 {
-    private static bool useAsync = true;
+    private static bool useAsyncRoaming = true;
+    private static bool useAsyncPlayerPaths = false;
 
     // Returns whether to insert another iteration of the enumerator to wait for the jobs to complete.
     private static bool StopPreviousJobAndStartNewOne(EnemyAI enemy)
     {
-        if (!useAsync)
+        if (!useAsyncRoaming)
             return false;
 
         var status = AsyncRoamingPathfinding.GetStatus(enemy);
@@ -37,7 +38,7 @@ internal static class PatchEnemyAI
 
     private static PathQueryStatus GetPathStatus(EnemyAI enemy, int index)
     {
-        if (!useAsync)
+        if (!useAsyncRoaming)
             return PathQueryStatus.Success;
 
         var status = AsyncRoamingPathfinding.GetStatus(enemy);
@@ -102,8 +103,6 @@ internal static class PatchEnemyAI
             Plugin.Instance.Logger.LogError($"Failed to find the 'i' field in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
             return instructions;
         }
-
-        var useAsyncField = typeof(PatchEnemyAI).GetField(nameof(useAsync), BindingFlags.NonPublic | BindingFlags.Static);
 
         var injector = new ILInjector(instructions)
             .Find(ILMatcher.Opcode(OpCodes.Switch));
@@ -229,7 +228,7 @@ internal static class PatchEnemyAI
         }
 
         // - else if (agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        // + else if (!PatchEnemyAI.useAsync && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
+        // + else if (!PatchEnemyAI.useAsyncRoaming && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
         //     EliminateNodeFromSearch(i);
         var skipEliminateNodeFromSyncLabel = generator.DefineLabel();
         var existingContinueLabel = (Label)injector.LastMatchedInstruction.operand;
@@ -249,13 +248,15 @@ internal static class PatchEnemyAI
             return instructions;
         }
 
+        var useAsyncRoamingField = typeof(PatchEnemyAI).GetField(nameof(useAsyncRoaming), BindingFlags.NonPublic | BindingFlags.Static);
+
         injector
             .InsertAfterBranch([
-                new(OpCodes.Ldsfld, useAsyncField),
+                new(OpCodes.Ldsfld, useAsyncRoamingField),
                 new(OpCodes.Brtrue_S, skipEliminateNodeFromSyncLabel),
             ]);
 
-        // + if (PatchEnemyAI.useAsync) {
+        // + if (PatchEnemyAI.useAsyncRoaming) {
         // +   PatchEnemyAI.SetPathDistance(this, i);
         // + } else
         //   if (!currentSearch.startedSearchAtSelf) {
@@ -283,7 +284,7 @@ internal static class PatchEnemyAI
         var doSyncPathDistanceLabel = generator.DefineLabel();
         injector
             .InsertAfterBranch([
-                new(OpCodes.Ldsfld, useAsyncField),
+                new(OpCodes.Ldsfld, useAsyncRoamingField),
                 new(OpCodes.Brfalse_S, doSyncPathDistanceLabel),
                 new(OpCodes.Ldloc_1),
                 new(OpCodes.Ldarg_0),
@@ -325,7 +326,7 @@ internal static class PatchEnemyAI
         var status = AsyncPlayerPathfinding.GetStatus(enemy);
         status.ResetIfResultsHaveBeenUsed();
 
-        if (!status.hasStarted && useAsync)
+        if (!status.hasStarted && useAsyncPlayerPaths)
             status.StartJobs(enemy);
     }
 
@@ -343,7 +344,7 @@ internal static class PatchEnemyAI
         //     if (!PlayerIsTargetable(StartOfRound.Instance.allPlayerScripts[i]))
         //       continue;
         // -   if (!PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
-        // +   if (PatchEnemyAI.useAsync ? PatchEnemyAI.IsPathToPlayerInvalid(this, i) : !PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
+        // +   if (PatchEnemyAI.useAsyncPlayerPaths ? PatchEnemyAI.IsPathToPlayerInvalid(this, i) : !PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
         //       continue;
         //     if (requireLineOfSight && !CheckLineOfSightForPosition(StartOfRound.Instance.allPlayerScripts[i].gameplayCamera.transform.position, viewWidth, 40))
         //       continue;
@@ -380,7 +381,7 @@ internal static class PatchEnemyAI
         var skipSyncLabel = generator.DefineLabel();
         injector
             .Insert([
-                new(OpCodes.Ldsfld, typeof(PatchEnemyAI).GetField(nameof(useAsync), BindingFlags.NonPublic | BindingFlags.Static)),
+                new(OpCodes.Ldsfld, typeof(PatchEnemyAI).GetField(nameof(useAsyncPlayerPaths), BindingFlags.NonPublic | BindingFlags.Static)),
                 new(OpCodes.Brfalse_S, skipAsyncLabel),
                 new(OpCodes.Ldarg_0),
                 loadIndexInstruction,
