@@ -1,3 +1,6 @@
+## Version 2.0.8 (Beta)
+- Disabled the player targeting patch until it can be split into individual patches for each affected enemy type.
+
 ## Version 2.0.7 (Beta)
 - Reworked the player targeting patch to prevent failure to select a target player in some scenarios.
 - Reduced delays in pausing pathfinding jobs to allow the main thread to run as fast as possible.
