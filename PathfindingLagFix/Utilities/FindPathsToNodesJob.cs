@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
@@ -145,8 +145,9 @@ internal struct FindPathsToNodesJob : IJobFor
         return array;
     }
 
-    private static readonly ProfilerMarker[] IterationMarkers = InitArray(1024, i => new ProfilerMarker($"Iteration {i}"));
-    private static readonly ProfilerMarker IterationUnknown = new ProfilerMarker($"Iteration ?");
+    private static readonly ProfilerMarker[] IterationMarkers = InitArray<ProfilerMarker>(1024, i => new($"Iteration {i}"));
+    private static readonly ProfilerMarker UnknownIterationMarker = new("Iteration ?");
+    private static readonly ProfilerMarker FinalizeIterationMarker = new("Finalize Iteration");
 #endif
 
     public void Execute(int index)
@@ -161,7 +162,7 @@ internal struct FindPathsToNodesJob : IJobFor
         NavMeshLock.BeginRead();
 
 #if BENCHMARKING
-        using var markerAuto = index < IterationMarkers.Length ? IterationMarkers[index].Auto() : IterationUnknown.Auto();
+        using var markerAuto = new TogglableProfilerAuto(in index < IterationMarkers.Length ? ref IterationMarkers[index] : ref UnknownIterationMarker);
 #endif
 
         var query = ThreadQueriesRef[ThreadIndex];
@@ -199,7 +200,13 @@ internal struct FindPathsToNodesJob : IJobFor
         {
             status = query.UpdateFindPath(NavMeshLock.RecommendedUpdateFindPathIterationCount, out int _);
 
+#if BENCHMARKING
+            markerAuto.Pause();
+#endif
             NavMeshLock.YieldRead();
+#if BENCHMARKING
+            markerAuto.Resume();
+#endif
         }
 
         status = query.EndFindPath(out var pathNodesSize);
@@ -219,6 +226,10 @@ internal struct FindPathsToNodesJob : IJobFor
 
         // Now that we have a copy of all the navmesh data we need, release the navmesh lock.
         NavMeshLock.EndRead();
+#if BENCHMARKING
+        markerAuto.Pause();
+        using var finalizeMarkerAuto = FinalizeIterationMarker.Auto();
+#endif
 
         PathSizes[index] = pathSize;
         pathNodes.Dispose();
