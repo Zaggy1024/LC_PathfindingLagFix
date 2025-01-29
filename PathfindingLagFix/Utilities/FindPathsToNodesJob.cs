@@ -159,7 +159,7 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         // Lock the navmesh to ensure that we don't crash while updating the path here.
-        NavMeshLock.BeginRead();
+        using var readLocker = new NavMeshReadLocker();
 
 #if BENCHMARKING
         using var markerAuto = new TogglableProfilerAuto(in index < IterationMarkers.Length ? ref IterationMarkers[index] : ref UnknownIterationMarker);
@@ -173,7 +173,6 @@ internal struct FindPathsToNodesJob : IJobFor
         if (!query.IsValid(origin))
         {
             Statuses[index] = PathQueryStatus.Failure;
-            NavMeshLock.EndRead();
             return;
         }
 
@@ -183,7 +182,6 @@ internal struct FindPathsToNodesJob : IJobFor
         if (!query.IsValid(destinationLocation))
         {
             Statuses[index] = PathQueryStatus.Failure;
-            NavMeshLock.EndRead();
             return;
         }
 
@@ -192,7 +190,6 @@ internal struct FindPathsToNodesJob : IJobFor
         if (status.GetResult() == PathQueryStatus.Failure)
         {
             Statuses[index] = status;
-            NavMeshLock.EndRead();
             return;
         }
 
@@ -203,7 +200,7 @@ internal struct FindPathsToNodesJob : IJobFor
 #if BENCHMARKING
             markerAuto.Pause();
 #endif
-            NavMeshLock.YieldRead();
+            readLocker.Yield();
 #if BENCHMARKING
             markerAuto.Resume();
 #endif
@@ -214,7 +211,6 @@ internal struct FindPathsToNodesJob : IJobFor
         if (status.GetResult() != PathQueryStatus.Success)
         {
             Statuses[index] = status;
-            NavMeshLock.EndRead();
             return;
         }
 
@@ -225,7 +221,8 @@ internal struct FindPathsToNodesJob : IJobFor
         status = NavMeshQueryUtils.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize) | status.GetDetail();
 
         // Now that we have a copy of all the navmesh data we need, release the navmesh lock.
-        NavMeshLock.EndRead();
+        readLocker.Dispose();
+
 #if BENCHMARKING
         markerAuto.Pause();
         using var finalizeMarkerAuto = FinalizeIterationMarker.Auto();
