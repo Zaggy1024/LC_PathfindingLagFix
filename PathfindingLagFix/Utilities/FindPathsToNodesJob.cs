@@ -55,14 +55,10 @@ internal struct FindPathsToNodesJob : IJobFor
 
         EnsureCount(count);
 
-        for (var i = 0; i < count; i++)
-            Statuses[i] = PathQueryStatus.InProgress;
+        Statuses.SetAllElements(PathQueryStatus.InProgress);
 
         if (calculateDistance)
-        {
-            for (var i = 0; i < count; i++)
-                PathDistances[i] = 0;
-        }
+            PathDistances.SetAllElements(0);
 
         Canceled[0] = false;
 
