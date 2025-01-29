@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
@@ -81,6 +81,9 @@ internal struct FindPathsToNodesJob : IJobFor
 
     private void CreateFixedArrays()
     {
+        if (Canceled.Length == 1)
+            return;
+
         Canceled = new(1, Allocator.Persistent);
     }
 
