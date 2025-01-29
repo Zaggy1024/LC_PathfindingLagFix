@@ -1,3 +1,6 @@
+## Version 2.0.9 (Beta)
+- Reintroduced the async player targeting patch with changes to ensure that enemies don't instantly give up the chase when first checking if a player is accessible.
+
 ## Version 2.0.8 (Beta)
 - Disabled the player targeting patch until it can be split into individual patches for each affected enemy type.
 
