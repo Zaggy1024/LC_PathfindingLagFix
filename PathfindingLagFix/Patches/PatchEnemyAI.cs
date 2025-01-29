@@ -317,10 +317,7 @@ internal static class PatchEnemyAI
         var pathsTime = status.UpdatePathsAndGetCalculationTime(enemy);
 
         if (Time.time - pathsTime > enemy.AIIntervalTime * 2)
-        {
-            Plugin.Instance.Logger.LogInfo($"{enemy}'s asynchronous paths to targetable players are stale, using a synchronous check this interval.");
             return false;
-        }
 
         return true;
     }
