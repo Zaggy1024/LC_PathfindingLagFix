@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Experimental.AI;
 
 using PathfindingLib.Utilities;
+using System;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -19,18 +20,25 @@ internal static class AsyncPlayerPathfinding
 
     internal class EnemyToPlayerPathfindingStatus
     {
+        internal enum JobsStatus
+        {
+            NotStarted,
+            NotRetrieved,
+            RetrievedJobsDone,
+            RetrievedJobsIncomplete,
+        }
+
         internal FindPathsToNodesJob PathsToPlayersJob;
         internal JobHandle PathsToPlayersJobHandle;
 
-        internal bool hasStarted = false;
         private int[] playerJobIndices = [];
         private readonly List<Vector3> validPlayerPositions = [];
-        private bool lastRetrievedStatusWasInProgress = false;
+        private float inFlightJobsTime = float.NegativeInfinity;
+        private float currentJobsTime = float.NegativeInfinity;
+        private bool[] playersPathable = [];
 
-        internal void StartJobs(EnemyAI enemy)
+        private void StartJobs(EnemyAI enemy)
         {
-            hasStarted = true;
-
             var agent = enemy.agent;
             var position = enemy.agent.GetPathOrigin();
 
@@ -39,7 +47,6 @@ internal static class AsyncPlayerPathfinding
                 playerJobIndices = new int[allPlayers.Length];
 
             validPlayerPositions.Clear();
-            lastRetrievedStatusWasInProgress = false;
 
             var jobIndex = 0;
             for (var i = 0; i < allPlayers.Length; i++)
@@ -58,40 +65,57 @@ internal static class AsyncPlayerPathfinding
             PathsToPlayersJob.Initialize(agent.agentTypeID, agent.areaMask, position, validPlayerPositions);
 
             PathsToPlayersJobHandle = PathsToPlayersJob.ScheduleByRef(validPlayerPositions.Count, default);
+
+            inFlightJobsTime = Time.time;
         }
 
-        internal bool IsPathValid(int playerIndex)
+        internal bool AllJobsAreDone()
         {
-            if (!hasStarted)
-                return false;
-
-            if (playerIndex >= playerJobIndices.Length)
-                return false;
-
-            var index = playerJobIndices[playerIndex];
-
-            if (index < 0)
-                return false;
-
-            var status = PathsToPlayersJob.Statuses[index].GetResult();
-            if (status == PathQueryStatus.InProgress)
+            for (var i = 0; i < PathsToPlayersJob.Statuses.Length; i++)
             {
-                lastRetrievedStatusWasInProgress = true;
-                return false;
+                if (PathsToPlayersJob.Statuses[i].GetResult() == PathQueryStatus.InProgress)
+                    return false;
+            }
+            return true;
+        }
+
+        internal float UpdatePathsAndGetCalculationTime(EnemyAI enemy)
+        {
+            if (!AllJobsAreDone())
+                return currentJobsTime;
+
+            if (playersPathable.Length != playerJobIndices.Length)
+                Array.Resize(ref playersPathable, playerJobIndices.Length);
+
+            for (var i = 0; i < playerJobIndices.Length; i++)
+            {
+                var jobIndex = playerJobIndices[i];
+                if (jobIndex == -1)
+                {
+                    playersPathable[i] = false;
+                    continue;
+                }
+
+                var status = PathsToPlayersJob.Statuses[jobIndex].GetResult();
+                playersPathable[i] = status == PathQueryStatus.Success;
             }
 
-            return status == PathQueryStatus.Success;
+            currentJobsTime = inFlightJobsTime;
+
+            StartJobs(enemy);
+            return currentJobsTime;
         }
 
-        internal void ResetIfResultsHaveBeenUsed()
+        internal bool CanReachPlayer(int playerIndex)
         {
-            if (!hasStarted)
-                return;
+            return playersPathable[playerIndex];
+        }
 
-            if (lastRetrievedStatusWasInProgress && validPlayerPositions.Count > 0)
-                return;
-
-            hasStarted = false;
+        internal void Clear()
+        {
+            playerJobIndices = [];
+            validPlayerPositions.Clear();
+            playersPathable = [];
         }
 
         ~EnemyToPlayerPathfindingStatus()

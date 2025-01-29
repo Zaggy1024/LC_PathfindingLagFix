@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -17,7 +16,7 @@ namespace PathfindingLagFix.Patches;
 internal static class PatchEnemyAI
 {
     private static bool useAsyncRoaming = true;
-    private static bool useAsyncPlayerPaths = false;
+    private static bool useAsyncPlayerPaths = true;
 
     // Returns whether to insert another iteration of the enumerator to wait for the jobs to complete.
     private static bool StopPreviousJobAndStartNewOne(EnemyAI enemy)
@@ -309,42 +308,39 @@ internal static class PatchEnemyAI
             .ReleaseInstructions();
     }
 
-    private static bool IsPathToPlayerInvalid(EnemyAI enemy, int playerIndex)
+    private static bool CheckIfPlayerPathsAreStaleAndStartJobs(EnemyAI enemy)
     {
+        if (!useAsyncPlayerPaths)
+            return false;
+
         var status = AsyncPlayerPathfinding.GetStatus(enemy);
-        if (!status.hasStarted)
+        var pathsTime = status.UpdatePathsAndGetCalculationTime(enemy);
+
+        if (Time.time - pathsTime > enemy.AIIntervalTime * 2)
         {
-            status.StartJobs(enemy);
-            return true;
+            Plugin.Instance.Logger.LogInfo($"{enemy}'s asynchronous paths to targetable players are stale, using a synchronous check this interval.");
+            return false;
         }
 
-        return !status.IsPathValid(playerIndex);
+        return true;
     }
 
-    private static void ResetPathToPlayerStatus(EnemyAI enemy)
+    private static bool IsAsyncPathToPlayerInvalid(EnemyAI enemy, int index)
     {
-        var status = AsyncPlayerPathfinding.GetStatus(enemy);
-        status.ResetIfResultsHaveBeenUsed();
-
-        if (!status.hasStarted && useAsyncPlayerPaths)
-            status.StartJobs(enemy);
-    }
-
-    private static IEnumerator ResetPathToPlayerStatusAtEndOfFrame(EnemyAI enemy)
-    {
-        yield return new WaitForEndOfFrame();
-        ResetPathToPlayerStatus(enemy);
+        return !AsyncPlayerPathfinding.GetStatus(enemy).CanReachPlayer(index);
     }
 
     [HarmonyTranspiler]
     [HarmonyPatch(nameof(EnemyAI.TargetClosestPlayer))]
     private static IEnumerable<CodeInstruction> TargetClosestPlayerTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
+        // + var canUseAsync = PatchEnemyAI.CheckIfPlayerPathsAreStaleAndStartJobs(this);
+        //   
         //   for (var i = 0; i < StartOfRound.Instance.connectedPlayersAmount + 1; i++) {
         //     if (!PlayerIsTargetable(StartOfRound.Instance.allPlayerScripts[i]))
         //       continue;
         // -   if (!PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
-        // +   if (PatchEnemyAI.useAsyncPlayerPaths ? PatchEnemyAI.IsPathToPlayerInvalid(this, i) : !PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
+        // +   if (canUseAsync ? PatchEnemyAI.IsAsyncPathToPlayerInvalid(this, i) : !PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
         //       continue;
         //     if (requireLineOfSight && !CheckLineOfSightForPosition(StartOfRound.Instance.allPlayerScripts[i].gameplayCamera.transform.position, viewWidth, 40))
         //       continue;
@@ -354,8 +350,13 @@ internal static class PatchEnemyAI
         //       targetPlayer = StartOfRound.Instance.allPlayerScripts[i];
         //     }
         //   }
-        // + StartCoroutine(PatchEnemyAI.ResetPathToPlayerStatusAtEndOfFrame(this));
+        var canUseAsyncLocal = generator.DeclareLocal(typeof(bool));
         var injector = new ILInjector(instructions)
+            .Insert([
+                new(OpCodes.Ldarg_0),
+                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(CheckIfPlayerPathsAreStaleAndStartJobs), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
+                new(OpCodes.Stloc, canUseAsyncLocal),
+            ])
             .Find([
                 ILMatcher.Ldarg(0),
                 ILMatcher.Call(typeof(StartOfRound).GetMethod($"get_{nameof(StartOfRound.Instance)}")),
@@ -379,41 +380,18 @@ internal static class PatchEnemyAI
         var loadIndexInstruction = injector.GetRelativeInstruction(3);
         var skipAsyncLabel = generator.DefineLabel();
         var skipSyncLabel = generator.DefineLabel();
-        injector
+        return injector
             .Insert([
-                new(OpCodes.Ldsfld, typeof(PatchEnemyAI).GetField(nameof(useAsyncPlayerPaths), BindingFlags.NonPublic | BindingFlags.Static)),
+                new(OpCodes.Ldloc, canUseAsyncLocal),
                 new(OpCodes.Brfalse_S, skipAsyncLabel),
                 new(OpCodes.Ldarg_0),
                 loadIndexInstruction,
-                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(IsPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(int)])),
+                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(IsAsyncPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(int)])),
                 new(OpCodes.Br_S, skipSyncLabel),
             ])
             .AddLabel(skipAsyncLabel)
             .GoToMatchEnd()
-            .AddLabel(skipSyncLabel);
-
-        injector
-            .Find([
-                ILMatcher.Ldarg(0),
-                ILMatcher.Ldfld(Reflection.f_EnemyAI_targetPlayer),
-            ]);
-
-        if (!injector.IsValid)
-        {
-            Plugin.Instance.Logger.LogError($"Failed to find the check for whether a target player was found in {nameof(EnemyAI)}.{nameof(EnemyAI.TargetClosestPlayer)}().");
-            return instructions;
-        }
-
-        var skipResettingStatusLabel = generator.DefineLabel();
-        return injector
-            .Insert([
-                new(OpCodes.Ldarg_0),
-                new(OpCodes.Ldarg_0),
-                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(ResetPathToPlayerStatusAtEndOfFrame), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
-                new(OpCodes.Call, Reflection.m_MonoBehaviour_StartCoroutine),
-                new(OpCodes.Pop),
-            ])
-            .AddLabel(skipResettingStatusLabel)
+            .AddLabel(skipSyncLabel)
             .ReleaseInstructions();
     }
 
