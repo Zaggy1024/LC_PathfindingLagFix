@@ -42,8 +42,16 @@ internal struct FindPathsToNodesJob : IJobFor
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> PathSizes;
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<float> PathDistances;
 
+#if BENCHMARKING
+    private static readonly ProfilerMarker InitializeJobMarker = new("Initialize Job");
+#endif
+
     public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, int count, bool calculateDistance = false)
     {
+#if BENCHMARKING
+        using var markerAuto = InitializeJobMarker.Auto();
+#endif
+
         ThreadQueriesRef = PathfindingJobSharedResources.GetPerThreadQueriesArray();
 
         CreateFixedArrays();
@@ -136,17 +144,9 @@ internal struct FindPathsToNodesJob : IJobFor
     }
 
 #if BENCHMARKING
-    private static T[] InitArray<T>(int count, Func<int, T> constructor)
-    {
-        var array = new T[count];
-        for (var i = 0; i < count; i++)
-            array[i] = constructor(i);
-        return array;
-    }
-
-    private static readonly ProfilerMarker[] IterationMarkers = InitArray<ProfilerMarker>(1024, i => new($"Iteration {i}"));
-    private static readonly ProfilerMarker UnknownIterationMarker = new("Iteration ?");
-    private static readonly ProfilerMarker FinalizeIterationMarker = new("Finalize Iteration");
+    private static readonly ProfilerMarkerWithMetadata<int> UpdateFindPathMarker = new("UpdateFindPath", "Iteration");
+    private static readonly ProfilerMarkerWithMetadata<int> FindStraightPathMarker = new("FindStraightPath", "Iteration");
+    private static readonly ProfilerMarkerWithMetadata<int> FinalizeIterationMarker = new("Finalize", "Iteration");
 #endif
 
     public void Execute(int index)
@@ -161,7 +161,7 @@ internal struct FindPathsToNodesJob : IJobFor
         using var readLocker = new NavMeshReadLocker();
 
 #if BENCHMARKING
-        using var markerAuto = new TogglableProfilerAuto(in index < IterationMarkers.Length ? ref IterationMarkers[index] : ref UnknownIterationMarker);
+        using var markerAuto = UpdateFindPathMarker.Auto(index);
 #endif
 
         var query = ThreadQueriesRef[ThreadIndex];
@@ -216,6 +216,11 @@ internal struct FindPathsToNodesJob : IJobFor
         var pathNodes = new NativeArray<PolygonId>(pathNodesSize, Allocator.Temp);
         query.GetPathResult(pathNodes);
 
+#if BENCHMARKING
+        markerAuto.Pause();
+        using var findStraightPathMarkerAuto = FindStraightPathMarker.Auto(index);
+#endif
+
         // Calculate straight path from polygons.
         status = NavMeshQueryUtils.FindStraightPath(query, Origin, destination, pathNodes, pathNodesSize, GetPathBuffer(index), out var pathSize) | status.GetDetail();
 
@@ -223,8 +228,8 @@ internal struct FindPathsToNodesJob : IJobFor
         readLocker.Dispose();
 
 #if BENCHMARKING
-        markerAuto.Pause();
-        using var finalizeMarkerAuto = FinalizeIterationMarker.Auto();
+        findStraightPathMarkerAuto.Pause();
+        using var finalizeMarkerAuto = FinalizeIterationMarker.Auto(index);
 #endif
 
         PathSizes[index] = pathSize;
