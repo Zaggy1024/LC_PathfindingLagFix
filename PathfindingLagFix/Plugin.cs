@@ -13,7 +13,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string MOD_NAME = "PathfindingLagFix";
     public const string MOD_UNIQUE_NAME = "Zaggy1024." + MOD_NAME;
-    public const string MOD_VERSION = "2.0.9";
+    public const string MOD_VERSION = "2.0.10";
 
     private readonly Harmony harmony = new(MOD_UNIQUE_NAME);
 

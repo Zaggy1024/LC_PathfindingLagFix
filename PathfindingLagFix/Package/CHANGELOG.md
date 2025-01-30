@@ -1,3 +1,8 @@
+## Version 2.0.10 (Beta)
+- Prevented the synchronous player target pathfinding log from printing for the first call after spawning.
+- Implemented some very minor optimizations to the async pathfinding job.
+- Fixed a leak of a 1-element array in the async pathfinding job.
+
 ## Version 2.0.9 (Beta)
 - Reintroduced the async player targeting patch with changes to ensure that enemies don't instantly give up the chase when first checking if a player is accessible.
 
