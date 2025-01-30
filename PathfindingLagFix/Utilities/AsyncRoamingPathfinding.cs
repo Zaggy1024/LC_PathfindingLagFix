@@ -29,7 +29,8 @@ internal static class AsyncRoamingPathfinding
         internal FindPathsToNodesJob PathsFromSearchStartJob;
         internal JobHandle PathsFromSearchStartJobHandle;
 
-        private int nodeCount;
+        private Vector3[] nodePositions = [];
+        private int nodeCount = 0;
 
         internal void StartJobs(EnemyAI enemy)
         {
@@ -46,7 +47,9 @@ internal static class AsyncRoamingPathfinding
 #endif
             var nodes = search.unsearchedNodes;
             nodeCount = nodes.Count;
-            var nodePositions = new Vector3[nodeCount];
+
+            if (nodeCount > nodePositions.Length)
+                nodePositions = new Vector3[nodeCount];
 
             for (var i = 0; i < nodes.Count; i++)
                 nodePositions[GetJobIndex(i)] = nodes[i].transform.position;
