@@ -77,7 +77,9 @@ internal struct ProfilerMarkerWithMetadata<T> where T : unmanaged
 
         data.Size = (uint)UnsafeUtility.SizeOf<T>();
 
-        ProfilerUnsafeUtility.SetMarkerMetadata(ptr, 0, metadata, data.Type, (byte)ProfilerMarkerDataUnit.Count);
+        // SetMarkerMetadata crashes if it is passed a null marker.
+        if (ptr != IntPtr.Zero)
+            ProfilerUnsafeUtility.SetMarkerMetadata(ptr, 0, metadata, data.Type, (byte)ProfilerMarkerDataUnit.Count);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
