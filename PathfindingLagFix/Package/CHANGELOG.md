@@ -1,3 +1,6 @@
+## Version 2.0.11 (Beta)
+- Fixed an issue where async player targeting would fail permanently if a player became targetable, untargetable, then targetable again.
+
 ## Version 2.0.10 (Beta)
 - Prevented the synchronous player target pathfinding log from printing for the first call after spawning.
 - Implemented some very minor optimizations to the async pathfinding job.
