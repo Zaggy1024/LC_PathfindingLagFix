@@ -94,7 +94,7 @@ internal static class AsyncPlayerPathfinding
 
         internal bool AllJobsAreDone()
         {
-            for (var i = 0; i < PathsToPlayersJob.Statuses.Length; i++)
+            for (var i = 0; i < validPlayerPositions.Count; i++)
             {
                 if (PathsToPlayersJob.Statuses[i].GetResult() == PathQueryStatus.InProgress)
                     return false;
