@@ -316,8 +316,13 @@ internal static class PatchEnemyAI
         var status = AsyncPlayerPathfinding.GetStatus(enemy);
         var pathsTime = status.UpdatePathsAndGetCalculationTime(enemy);
 
-        if (Time.time - pathsTime > enemy.AIIntervalTime * 2)
+        var age = Time.time - pathsTime;
+        if (age > enemy.AIIntervalTime * 2)
+        {
+            if (age < float.PositiveInfinity)
+                Plugin.Instance.Logger.LogInfo($"Player paths from {enemy.name} ({enemy.GetType().Name}, {enemy.GetInstanceID()}) are {age * 1000}ms old, which is more than twice {enemy.AIIntervalTime * 1000}ms, using synchronous paths.");
             return false;
+        }
 
         return true;
     }
