@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 
 using Unity.Jobs;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
@@ -93,16 +94,39 @@ internal static class AsyncDistancePathfinding
         }
     }
 
+#if BENCHMARKING
+    private static readonly ProfilerMarker StartJobsMarker = new("Start Jobs");
+    private static readonly ProfilerMarker SortMarker = new("Sort Nodes");
+    private static readonly ProfilerMarker ScheduleMarker = new("Schedule Job");
+#endif
+
     internal static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst)
     {
+#if BENCHMARKING
+        using var startJobsMarkerAuto = StartJobsMarker.Auto();
+#endif
+
         var agent = enemy.agent;
         var position = agent.GetPathOrigin();
+
+#if BENCHMARKING
+        using var sortMarkerAuto = new TogglableProfilerAuto(SortMarker);
+#endif
         status.SortNodes(enemy, target, farthestFirst);
+#if BENCHMARKING
+        sortMarkerAuto.Pause();
+#endif
 
         ref var job = ref status.Job;
         job.Initialize(agent.agentTypeID, agent.areaMask, position, status.SortedPositions);
 
+#if BENCHMARKING
+        using var scheduleMarkerAuto = new TogglableProfilerAuto(ScheduleMarker);
+#endif
         status.JobHandle = job.ScheduleByRef(count, default);
+#if BENCHMARKING
+        scheduleMarkerAuto.Pause();
+#endif
 
         return status;
     }

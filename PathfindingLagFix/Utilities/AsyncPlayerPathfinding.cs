@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using Unity.Jobs;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
 using PathfindingLib.Utilities;
-using System;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -17,6 +18,12 @@ internal static class AsyncPlayerPathfinding
     {
         Statuses[enemy.thisEnemyIndex] = new EnemyToPlayerPathfindingStatus();
     }
+
+#if BENCHMARKING
+    private static readonly ProfilerMarker StartJobsMarker = new("Start Jobs");
+    private static readonly ProfilerMarker CollectMarker = new("Collect Players");
+    private static readonly ProfilerMarker ScheduleMarker = new("Schedule Job");
+#endif
 
     internal class EnemyToPlayerPathfindingStatus
     {
@@ -39,9 +46,16 @@ internal static class AsyncPlayerPathfinding
 
         private void StartJobs(EnemyAI enemy)
         {
+#if BENCHMARKING
+            using var startJobsMarkerAuto = StartJobsMarker.Auto();
+#endif
+
             var agent = enemy.agent;
             var position = enemy.agent.GetPathOrigin();
 
+#if BENCHMARKING
+            using var collectMarkerAuto = new TogglableProfilerAuto(CollectMarker);
+#endif
             var allPlayers = StartOfRound.Instance.allPlayerScripts;
             if (playerJobIndices.Length != allPlayers.Length)
                 playerJobIndices = new int[allPlayers.Length];
@@ -61,10 +75,19 @@ internal static class AsyncPlayerPathfinding
                 playerJobIndices[i] = jobIndex++;
                 validPlayerPositions.Add(player.transform.position);
             }
+#if BENCHMARKING
+            collectMarkerAuto.Pause();
+#endif
 
             PathsToPlayersJob.Initialize(agent.agentTypeID, agent.areaMask, position, validPlayerPositions);
 
+#if BENCHMARKING
+            using var scheduleMarkerAuto = new TogglableProfilerAuto(ScheduleMarker);
+#endif
             PathsToPlayersJobHandle = PathsToPlayersJob.ScheduleByRef(validPlayerPositions.Count, default);
+#if BENCHMARKING
+            scheduleMarkerAuto.Pause();
+#endif
 
             inFlightJobsTime = Time.time;
         }

@@ -2,6 +2,7 @@ using Unity.Jobs;
 using UnityEngine;
 
 using PathfindingLib.Utilities;
+using Unity.Profiling;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -13,6 +14,12 @@ internal static class AsyncRoamingPathfinding
     {
         Statuses[enemy.thisEnemyIndex] = new EnemyRoamingPathfindingStatus();
     }
+
+#if BENCHMARKING
+    private static readonly ProfilerMarker StartJobsMarker = new("Start Jobs");
+    private static readonly ProfilerMarker GetNodePositionsMarker = new("Get Node Positions");
+    private static readonly ProfilerMarker InitAndScheduleJobsMarker = new("Initialize and Schedule Jobs");
+#endif
 
     internal class EnemyRoamingPathfindingStatus
     {
@@ -26,10 +33,17 @@ internal static class AsyncRoamingPathfinding
 
         internal void StartJobs(EnemyAI enemy)
         {
+#if BENCHMARKING
+            using var startJobsMarkerAuto = StartJobsMarker.Auto();
+#endif
+
             var search = enemy.currentSearch;
             var agent = enemy.agent;
             var position = enemy.agent.GetPathOrigin();
 
+#if BENCHMARKING
+            using var getNodePositionsMarkerAuto = new TogglableProfilerAuto(GetNodePositionsMarker);
+#endif
             var nodes = search.unsearchedNodes;
             nodeCount = nodes.Count;
             var nodePositions = new Vector3[nodeCount];
@@ -37,12 +51,17 @@ internal static class AsyncRoamingPathfinding
             for (var i = 0; i < nodes.Count; i++)
                 nodePositions[GetJobIndex(i)] = nodes[i].transform.position;
 
-            PathsFromEnemyJob.Initialize(agent.agentTypeID, agent.areaMask, position, nodePositions, calculateDistance: search.startedSearchAtSelf);
+#if BENCHMARKING
+            getNodePositionsMarkerAuto.Pause();
+            using var initAndScheduleJobsMarkerAuto = InitAndScheduleJobsMarker.Auto();
+#endif
+
+            PathsFromEnemyJob.Initialize(agent.agentTypeID, agent.areaMask, position, nodePositions, nodeCount, calculateDistance: search.startedSearchAtSelf);
             PathsFromEnemyJobHandle = PathsFromEnemyJob.ScheduleByRef(nodes.Count, default);
 
             if (!search.startedSearchAtSelf)
             {
-                PathsFromSearchStartJob.Initialize(agent.agentTypeID, agent.areaMask, search.currentSearchStartPosition, nodePositions, calculateDistance: true);
+                PathsFromSearchStartJob.Initialize(agent.agentTypeID, agent.areaMask, search.currentSearchStartPosition, nodePositions, nodeCount, calculateDistance: true);
                 PathsFromSearchStartJobHandle = PathsFromSearchStartJob.ScheduleByRef(nodes.Count, default);
             }
         }
