@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 
 using Unity.Jobs;
-using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 
 using PathfindingLib.Utilities;
+
+#if BENCHMARKING
+using Unity.Profiling;
+#endif
 
 namespace PathfindingLagFix.Utilities;
 

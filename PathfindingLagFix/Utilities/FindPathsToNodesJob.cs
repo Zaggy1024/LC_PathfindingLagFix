@@ -11,7 +11,6 @@ using PathfindingLib.Jobs;
 using PathfindingLib.Utilities;
 
 #if BENCHMARKING
-using System;
 using Unity.Profiling;
 #endif
 

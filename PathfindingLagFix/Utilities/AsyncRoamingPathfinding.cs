@@ -2,7 +2,10 @@ using Unity.Jobs;
 using UnityEngine;
 
 using PathfindingLib.Utilities;
+
+#if BENCHMARKING
 using Unity.Profiling;
+#endif
 
 namespace PathfindingLagFix.Utilities;
 
