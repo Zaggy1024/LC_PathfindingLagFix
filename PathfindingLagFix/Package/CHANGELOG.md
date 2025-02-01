@@ -1,51 +1,15 @@
-## Version 2.0.11 (Beta)
-- Fixed an issue where async player targeting would fail permanently if a player became targetable, untargetable, then targetable again.
+## Version 2.0.0
+> Note that this has the same mod ID as PathfindingLagFix Beta, but a lower version, so that will need to be disabled in order to run the stable version.
 
-## Version 2.0.10 (Beta)
-- Prevented the synchronous player target pathfinding log from printing for the first call after spawning.
-- Implemented some very minor optimizations to the async pathfinding job.
-- Fixed a leak of a 1-element array in the async pathfinding job.
-
-## Version 2.0.9 (Beta)
-- Reintroduced the async player targeting patch with changes to ensure that enemies don't instantly give up the chase when first checking if a player is accessible.
-
-## Version 2.0.8 (Beta)
-- Disabled the player targeting patch until it can be split into individual patches for each affected enemy type.
-
-## Version 2.0.7 (Beta)
-- Reworked the player targeting patch to prevent failure to select a target player in some scenarios.
-- Reduced delays in pausing pathfinding jobs to allow the main thread to run as fast as possible.
-
-## Version 2.0.6 (Beta)
-- Added some tulip snake patches to prevent stutters, especially just after they have dismounting a player.
-- Prevented some rare situations where enemies may be permanently blocked from doing distance-based pathfinding.
-
-## Version 2.0.5 (Beta)
-- Moved some functionality over to the PathfindingLib library to allow other mods to make use of it without hard depending on PathfindingLagFix.
-- Removed the crash warning from the mod description in the manifest.
-- Removed a spammy transpiler log when starting up.
-
-## Version 2.0.4 (Beta)
-- Added a patch to prevent stutters when enemies are trying to target players in large lobbies.
-- Removed the crash warning from the readme, as 2.0.3 appears to have remained stable.
-
-## Version 2.0.3 (Beta)
-- Added a workaround to prevent crashes that would occur when the navmesh is modified while pathfinding jobs are running.
-
-## Version 2.0.2 (Beta)
-- Added a warning to the readme and description about potential crashes.
-
-## Version 2.0.1 (Beta)
-- Modified threaded code in an effort to prevent crashes. The crashes are extremely rare, so these fixes are unconfirmed, and crashes may still be present.
-- Fixed some issues that may cause unintended inconsistencies in pathfinding versus the vanilla code.
-
-## Version 2.0.0 (Beta)
-- Rewrote the mod to run any pathfinding patches off the main thread via Unity Jobs, reducing the performance impact to near zero.
-- Patches have been completely rewritten and now include:
-  - All roaming AI
+- Rewrote the mod to run all pathfinding patches off the main thread using [PathfindingLib](https://thunderstore.io/c/lethal-company/p/Zaggy1024/PathfindingLib/), reducing the performance impact of many forms of vanilla enemy pathfinding to near zero. This provides a general framerate improvement when many enemies are spawned, especially for hosts.
+- All patches have been completely rewritten.
+- Patched behaviors now include:
+  - All roaming AI (i.e. thumpers, lootbugs, coilheads, and many more)
+  - All omniscient player targeting (i.e. blobs, jesters, brackens, and more)
   - Bracken hunting, evasion, and hiding spot pathfinding
   - Snare flea hiding spot pathfinding
   - Spore lizard evasion pathfinding
+  - Tulip snake dismounting pathfinding, and calls to `FindObjectsByType<FlowerSnakeEnemy>()`
   - Manticoil evasion pathfinding
 
 ## Version 1.4.0
