@@ -320,7 +320,7 @@ internal static class PatchEnemyAI
         if (age > enemy.AIIntervalTime * 2)
         {
             if (age < float.PositiveInfinity)
-                Plugin.Instance.Logger.LogInfo($"Player paths from {enemy.name} ({enemy.GetType().Name}, {enemy.GetInstanceID()}) are {age * 1000}ms old, which is more than twice {enemy.AIIntervalTime * 1000}ms, using synchronous paths.");
+                Plugin.Instance.Logger.LogDebug($"Player paths from {enemy.name} ({enemy.GetType().Name}, {enemy.GetInstanceID()}) are {age * 1000}ms old, which is more than twice {enemy.AIIntervalTime * 1000}ms, using synchronous paths.");
             return false;
         }
 
