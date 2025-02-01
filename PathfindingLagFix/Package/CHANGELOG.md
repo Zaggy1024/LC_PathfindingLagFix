@@ -1,3 +1,6 @@
+## Version 2.0.1
+- Updated the manifest description to no longer state that it is a beta version.
+
 ## Version 2.0.0
 > Note that this has the same mod ID as PathfindingLagFix Beta, but a lower version, so that will need to be disabled in order to run the stable version.
 
