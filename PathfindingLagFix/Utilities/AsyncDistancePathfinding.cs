@@ -196,7 +196,7 @@ internal static class AsyncDistancePathfinding
             for (int i = 0; i < candidateCount; i++)
             {
                 if (capDistanceSqr > 0 && (status.SortedPositions[i] - enemyPosition).sqrMagnitude > capDistanceSqr)
-                    break;
+                    continue;
 
                 var nodeStatus = job.Statuses[i];
                 if (nodeStatus.GetResult() == PathQueryStatus.InProgress)
