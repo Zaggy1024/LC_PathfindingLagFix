@@ -226,29 +226,40 @@ internal static class AsyncDistancePathfinding
                     continue;
                 }
             }
-            // If all line of sight checks fail, we will find the furthest reachable path to allow the pathfinding to succeed once we set the target.
-            // The vanilla version of this function may return an unreachable location, so the NavMeshAgent will reset it to a reachable location and
-            // cause a delay in the enemy's movement.
-            if (complete && result == -1)
-            {
-                for (int i = 0; i < candidateCount; i++)
-                {
-                    if (job.Statuses[i].GetResult() == PathQueryStatus.Success)
-                    {
-                        result = i;
-                        break;
-                    }
-                }
+            if (complete)
                 break;
-            }
         }
 
         job.Cancel();
 
-        if (result == -1 && status.SortedNodes.Length > 0)
-            result = 0;
+        if (result == -1)
+        {
+            switch (ConfigOptions.CurrentOptions.DistancePathfindingFallbackNodeSelection)
+            {
+                case DistancePathfindingFallbackNodeSelectionType.BestPathable:
+                    for (var i = 0; i < candidateCount; i++)
+                    {
+                        if (job.Statuses[i].GetResult() == PathQueryStatus.Success)
+                        {
+                            result = i;
+                            break;
+                        }
+                    }
+                    break;
+                case DistancePathfindingFallbackNodeSelectionType.Vanilla:
+                    result = 0;
+                    break;
+                case DistancePathfindingFallbackNodeSelectionType.DontMove:
+                    break;
+            }
+        }
 
-        if (result >= 0)
+        if (result == -1)
+        {
+            status.ChosenNode = enemy.transform;
+            status.MostOptimalDistance = 0;
+        }
+        else
         {
             status.ChosenNode = status.SortedNodes[result];
             status.MostOptimalDistance = Vector3.Distance(target, status.SortedPositions[result]);

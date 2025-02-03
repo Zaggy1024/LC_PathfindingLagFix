@@ -24,6 +24,8 @@ public class Plugin : BaseUnityPlugin
     {
         Instance = this;
 
+        ConfigOptions.BindAllOptions(Config);
+
         harmony.PatchAll(typeof(PatchEnemyAI));
         harmony.PatchAll(typeof(PatchFlowermanAI));
         harmony.PatchAll(typeof(PatchCentipedeAI));

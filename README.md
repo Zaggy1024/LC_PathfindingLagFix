@@ -40,6 +40,18 @@ Other changes include:
 - Tulip snake:
   - A patch to prevent small stutters due to calls to `Object.FindObjectsByType<FlowerSnakeEnemy>()`.
 
+## Options
+
+The mod is designed to change the behavior of enemies as minimally as possible, but there are some bugs that are incidental to the included patches and cannot be fixed by another mod unless it maintains two different versions of the patch. Therefore, the fixes are included in PathfindingLagFix.
+
+In order to allow easy configuration of these fixes, two presets are included to define the general effect of options that can change behavior:
+- OnlyFixes: The default, this will select only options that make what are deemed to be fixes to bugs in the vanilla behavior of enemies.
+- Vanilla: This will attempt to retain the behavior of the vanilla game as much as possible.
+
+They control two options that can be overridden individually:
+- DistancePathfindingFallbackNodeSelection: Sets how distance pathfinding, i.e. bracken evasion, behaves when it fails to find a valid path out of line of sight, or any other criteria. The default behavior is to only return reachable nodes. This can be changed to behave the same as vanilla, where the path may not be valid, resulting in the enemy stutter stepping towards the evasion node.
+- AsyncDistancePathfindingMostOptimalDistanceBehavior: Determines whether mostOptimalDistance is set to the distance to the chosen node for AI when they are making use of the vanilla async pathfinding solution. Not setting it causes the bracken to stop in front of the player if they spot it within 5 units.
+
 ## Thanks to
 - Lunxara - Tested the early beta versions that were crashing due to Unity silliness.
 - mattymatty - Brainstormed, assisted in reverse engineering Unity, and helped implementing synchronization to prevent crashes.
