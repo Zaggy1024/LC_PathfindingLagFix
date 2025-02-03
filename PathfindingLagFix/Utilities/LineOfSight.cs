@@ -22,26 +22,21 @@ internal static class LineOfSight
             return false;
 
         // Check if any segment of the path enters a player's line of sight.
-        bool pathObstructed = false;
-        var originPos = path[0].position;
-        var segmentStartPos = originPos;
-
-        for (int segment = 1; segment < path.Length && segment < 16 && !pathObstructed; segment++)
+        for (int segment = 1; segment < path.Length && segment < 16; segment++)
         {
-            var segmentEndPos = path[segment].position;
+            var segmentStart = path[segment - 1].position;
+            var segmentEnd = path[segment].position;
 
             if (checkLOSToPosition.HasValue)
             {
-                var segmentCenter = (segmentStartPos + segmentEndPos) * 0.5f;
+                var segmentCenter = (segmentStart + segmentEnd) * 0.5f;
                 var verticalOffset = Vector3.up * 0.25f;
                 if (!Physics.Linecast(segmentCenter + verticalOffset, checkLOSToPosition.Value + verticalOffset, StartOfRound.Instance.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore))
                     return true;
             }
 
-            if (Physics.Linecast(segmentStartPos, segmentEndPos, LINE_OF_SIGHT_LAYER_MASK))
+            if (Physics.Linecast(segmentStart, segmentEnd, LINE_OF_SIGHT_LAYER_MASK))
                 return true;
-
-            segmentStartPos = segmentEndPos;
         }
 
         return false;
