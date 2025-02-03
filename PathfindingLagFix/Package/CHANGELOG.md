@@ -1,3 +1,7 @@
+## Version 2.1.0
+- Fixed a bug that would cause the bracken not to path out of line of sight in some situations.
+- Added presets and options to configure the bug fixes that slightly change behavior from vanilla.
+
 ## Version 2.0.1
 - Updated the manifest description to no longer state that it is a beta version.
 
