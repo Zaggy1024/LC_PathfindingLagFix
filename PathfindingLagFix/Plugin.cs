@@ -32,6 +32,7 @@ public class Plugin : BaseUnityPlugin
         harmony.PatchAll(typeof(PatchPufferAI));
         harmony.PatchAll(typeof(PatchDoublewingAI));
         harmony.PatchAll(typeof(PatchFlowerSnakeEnemy));
+        harmony.PatchAll(typeof(PatchSpringManAI));
 
         PatchFindMainEntrance.ApplyPatches(harmony);
     }

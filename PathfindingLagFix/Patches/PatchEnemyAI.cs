@@ -15,6 +15,9 @@ namespace PathfindingLagFix.Patches;
 [HarmonyPatch(typeof(EnemyAI))]
 internal static class PatchEnemyAI
 {
+    internal readonly static MethodInfo m_CheckIfPlayerPathsAreStaleAndStartJobs = typeof(PatchEnemyAI).GetMethod(nameof(CheckIfPlayerPathsAreStaleAndStartJobs), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)]);
+    internal readonly static MethodInfo m_IsAsyncPathToPlayerInvalid = typeof(PatchEnemyAI).GetMethod(nameof(IsAsyncPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(int)]);
+
     private static bool useAsyncRoaming = true;
     private static bool useAsyncPlayerPaths = true;
 
@@ -356,7 +359,7 @@ internal static class PatchEnemyAI
         var injector = new ILInjector(instructions)
             .Insert([
                 new(OpCodes.Ldarg_0),
-                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(CheckIfPlayerPathsAreStaleAndStartJobs), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
+                new(OpCodes.Call, m_CheckIfPlayerPathsAreStaleAndStartJobs),
                 new(OpCodes.Stloc, canUseAsyncLocal),
             ])
             .Find([
@@ -388,7 +391,7 @@ internal static class PatchEnemyAI
                 new(OpCodes.Brfalse_S, skipAsyncLabel),
                 new(OpCodes.Ldarg_0),
                 loadIndexInstruction,
-                new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(IsAsyncPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(int)])),
+                new(OpCodes.Call, m_IsAsyncPathToPlayerInvalid),
                 new(OpCodes.Br_S, skipSyncLabel),
             ])
             .AddLabel(skipAsyncLabel)
