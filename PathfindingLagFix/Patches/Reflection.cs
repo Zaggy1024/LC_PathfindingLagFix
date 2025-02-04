@@ -12,6 +12,9 @@ namespace PathfindingLagFix.Patches
     {
         public static readonly MethodInfo m_Debug_Log = typeof(Debug).GetMethod("Log", [ typeof(object) ]);
 
+        public static readonly MethodInfo m_StartOfRound_get_Instance = typeof(StartOfRound).GetMethod($"get_{nameof(StartOfRound.Instance)}");
+        public static readonly FieldInfo f_StartOfRound_allPlayerScripts = typeof(StartOfRound).GetField(nameof(StartOfRound.allPlayerScripts));
+
         public static readonly MethodInfo m_EnemyAI_DoAIInterval = typeof(EnemyAI).GetMethod(nameof(EnemyAI.DoAIInterval), []);
         public static readonly MethodInfo m_EnemyAI_TargetClosestPlayer = typeof(EnemyAI).GetMethod(nameof(EnemyAI.TargetClosestPlayer), [typeof(float), typeof(bool), typeof(float)]);
         public static readonly MethodInfo m_EnemyAI_ChooseFarthestNodeFromPosition = typeof(EnemyAI).GetMethod(nameof(EnemyAI.ChooseFarthestNodeFromPosition), [typeof(Vector3), typeof(bool), typeof(int), typeof(bool), typeof(int), typeof(bool)]);

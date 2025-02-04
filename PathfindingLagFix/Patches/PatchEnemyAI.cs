@@ -364,8 +364,8 @@ internal static class PatchEnemyAI
             ])
             .Find([
                 ILMatcher.Ldarg(0),
-                ILMatcher.Call(typeof(StartOfRound).GetMethod($"get_{nameof(StartOfRound.Instance)}")),
-                ILMatcher.Ldfld(typeof(StartOfRound).GetField(nameof(StartOfRound.allPlayerScripts))),
+                ILMatcher.Call(Reflection.m_StartOfRound_get_Instance),
+                ILMatcher.Ldfld(Reflection.f_StartOfRound_allPlayerScripts),
                 ILMatcher.Ldloc(),
                 ILMatcher.Opcode(OpCodes.Ldelem_Ref),
                 ILMatcher.Callvirt(Reflection.m_Component_get_transform),
