@@ -183,7 +183,7 @@ internal static class PatchFlowerSnakeEnemy
             ]);
         if (!injector.IsValid)
         {
-            Plugin.Instance.Logger.LogError($"Failed to find the check for a chosen faraway node in {method.DeclaringType.Name}.{method.Name}().");
+            Plugin.Instance.Logger.LogError($"Failed to find the call to get all flower snakes in {method.DeclaringType.Name}.{method.Name}().");
             return instructions;
         }
 
