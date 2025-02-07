@@ -1,6 +1,6 @@
 {
     "name": "PathfindingLagFix",
-    "version_number": "2.1.0",
+    "version_number": "2.1.1",
     "website_url": "https://github.com/Zaggy1024/LC_PathfindingLagFix/",
     "description": "Improves overall performance by threading vanilla AI pathfinding and patching slow methods.",
     "dependencies": [

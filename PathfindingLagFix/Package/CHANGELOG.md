@@ -1,3 +1,6 @@
+## Version 2.1.1
+- Fixed a bug that caused distance pathfinding to get incorrect results when the jobs take a long time. This fixes a bug that could cause bracken to path in strange ways on Titan.
+
 ## Version 2.1.0
 - Fixed a bug that would cause the bracken not to path out of line of sight in some situations.
 - Added presets and options to configure the bug fixes that slightly change behavior from vanilla.
