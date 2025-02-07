@@ -121,7 +121,7 @@ internal static class PatchFlowermanAI
     [HarmonyPatch(nameof(FlowermanAI.AvoidClosestPlayer))]
     private static IEnumerable<CodeInstruction> AvoidClosestPlayerTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
-        // + if (!PatchFlowermanAI.ChoosePlayerEvasionNodeAsync(this))
+        // + if (PatchFlowermanAI.ChoosePlayerEvasionNodeAsync(this))
         // +   return;
         //   if (farthestNodeFromTargetPlayer == null) {
         //     gettingFarthestNodeFromPlayerAsync = true;
