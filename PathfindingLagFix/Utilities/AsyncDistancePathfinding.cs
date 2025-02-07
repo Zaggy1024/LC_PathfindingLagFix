@@ -147,6 +147,7 @@ internal static class AsyncDistancePathfinding
             return status;
         }
 
+        status.RetrieveChosenNode(out _);
         status.CurrentSearchTypeID = searchTypeID;
         status.Coroutine = enemy.StartCoroutine(coroutine(status));
         return status;
