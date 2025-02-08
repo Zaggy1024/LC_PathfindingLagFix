@@ -12,6 +12,8 @@ namespace PathfindingLagFix.Patches
     {
         public static readonly MethodInfo m_Debug_Log = typeof(Debug).GetMethod("Log", [ typeof(object) ]);
 
+        public static readonly MethodInfo m_RoundManager_get_Instance = typeof(RoundManager).GetMethod($"get_{nameof(RoundManager.Instance)}");
+
         public static readonly MethodInfo m_StartOfRound_get_Instance = typeof(StartOfRound).GetMethod($"get_{nameof(StartOfRound.Instance)}");
         public static readonly FieldInfo f_StartOfRound_allPlayerScripts = typeof(StartOfRound).GetField(nameof(StartOfRound.allPlayerScripts));
 
