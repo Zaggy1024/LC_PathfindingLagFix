@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
+using UnityEngine;
 
 using PathfindingLagFix.Patches;
 using PathfindingLib;
@@ -35,5 +36,12 @@ public class Plugin : BaseUnityPlugin
         harmony.PatchAll(typeof(PatchSpringManAI));
 
         PatchFindMainEntrance.ApplyPatches(harmony);
+
+#if BENCHMARKING
+        Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+        Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
+        Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.None);
+        Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.None);
+#endif
     }
 }
