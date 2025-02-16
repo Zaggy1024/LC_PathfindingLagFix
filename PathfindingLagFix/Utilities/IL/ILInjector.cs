@@ -225,7 +225,7 @@ public class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator g
         return instructions[offsetIndex];
     }
 
-    public void SetRelativeInstruction(int offset, CodeInstruction instruction)
+    public ILInjector SetRelativeInstruction(int offset, CodeInstruction instruction)
     {
         if (!IsValid)
             throw new InvalidOperationException(INVALID);
@@ -234,6 +234,7 @@ public class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator g
         if (!IsIndexInRange(offsetIndex))
             throw new IndexOutOfRangeException($"Offset {offset} would write out of bounds at index {offsetIndex}");
         instructions[offsetIndex] = instruction;
+        return this;
     }
 
     public IEnumerable<CodeInstruction> GetRelativeInstructions(int offset, int size)
