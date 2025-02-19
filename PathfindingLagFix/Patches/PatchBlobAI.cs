@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -189,8 +189,8 @@ internal static class PatchBlobAI
 
         var storeExtendedPosition = injector.GetRelativeInstruction(1).Clone();
         var skipGetNavMeshPositionLabel = generator.DefineLabel();
-        injector
-            .Forward(2)
+        return injector
+            .GoToMatchEnd()
             .AddLabel(skipGetNavMeshPositionLabel)
             .InsertInPlace([
                 // PatchBlobAI.SetBlobNavMeshPosition(this, i, extendedPosition);
@@ -199,8 +199,7 @@ internal static class PatchBlobAI
                 new(storeExtendedPosition.StlocToLdloc()),
                 new(OpCodes.Call, typeof(PatchBlobAI).GetMethod(nameof(SetBlobNavMeshPosition), BindingFlags.NonPublic | BindingFlags.Static, [typeof(BlobAI), typeof(int), typeof(Vector3)])),
             ])
-            .Back(2);
-        return injector
+            .Back(2)
             .GoToPush(4)
             .InsertAfterBranch([
                 // var extendedPosition = PatchBlobAI.GetBlobNavMeshPosition(this, i);
