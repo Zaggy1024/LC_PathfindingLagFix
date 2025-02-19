@@ -8,10 +8,9 @@ using HarmonyLib;
 
 namespace PathfindingLagFix.Utilities.IL;
 
-public class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator generator = null)
+internal class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator generator = null)
 {
     private const string INVALID = "Injector is invalid";
-    private const string MATCH_END_INVALID = "The end of the last search was invalid";
 
     private List<CodeInstruction> instructions = instructions.ToList();
     private ILGenerator generator = generator;
@@ -275,12 +274,16 @@ public class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator g
         return instructions.GetRange(start, size);
     }
 
-    public Label AddLabel()
+    public Label DefineLabel()
     {
         if (generator == null)
             throw new InvalidOperationException("No ILGenerator was provided");
+        return generator.DefineLabel();
+    }
 
-        var label = generator.DefineLabel();
+    public Label AddLabel()
+    {
+        var label = DefineLabel();
         Instruction.labels.Add(label);
         return label;
     }
@@ -365,7 +368,9 @@ public class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator g
 
     public ILInjector ReplaceLastMatch(params CodeInstruction[] instructions)
     {
+        var labels = Instruction.labels;
         RemoveLastMatch();
+        Instruction.labels.AddRange(labels);
         Insert(instructions);
         return this;
     }
