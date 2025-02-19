@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -100,7 +100,7 @@ internal static class PatchBlobAI
                 ILMatcher.Ldloc(),
                 ILMatcher.Ldarg(0),
                 ILMatcher.Ldfld(typeof(BlobAI).GetField(nameof(BlobAI.SlimeBones))),
-                ILMatcher.Ldloc(),
+                ILMatcher.Ldloc().CaptureAs(out var loadIndex),
                 ILMatcher.Opcode(OpCodes.Ldelem_Ref),
                 ILMatcher.Callvirt(Reflection.m_Component_get_transform),
                 ILMatcher.Callvirt(Reflection.m_Transform_get_position),
@@ -114,7 +114,6 @@ internal static class PatchBlobAI
             return instructions;
         }
 
-        var loadIndex = injector.GetRelativeInstruction(4).Clone();
         var shouldUpdateLocal = generator.DeclareLocal(typeof(bool));
 
         var skipPhysicsLabel = generator.DefineLabel();
@@ -136,7 +135,7 @@ internal static class PatchBlobAI
             ])
             .Find([
                 ILMatcher.Call(typeof(Physics).GetMethod(nameof(Physics.Raycast), [typeof(Ray), typeof(RaycastHit).MakeByRefType(), typeof(float), typeof(int), typeof(QueryTriggerInteraction)])),
-                ILMatcher.Opcode(OpCodes.Brfalse),
+                ILMatcher.Opcode(OpCodes.Brfalse).CaptureLabelOperandAs(out var noRaycastHitLabel),
             ]);
 
         if (!injector.IsValid)
@@ -145,7 +144,6 @@ internal static class PatchBlobAI
             return instructions;
         }
 
-        var noRaycastHitLabel = (Label)injector.GetRelativeInstruction(1).operand;
         var skipGetCachedHitLabel = generator.DefineLabel();
         var slimeRayHitField = typeof(BlobAI).GetField(nameof(BlobAI.slimeRayHit), BindingFlags.NonPublic | BindingFlags.Instance);
         injector
@@ -178,7 +176,7 @@ internal static class PatchBlobAI
             ])
             .Find([
                 ILMatcher.Callvirt(typeof(RoundManager).GetMethod(nameof(RoundManager.GetNavMeshPosition), [typeof(Vector3), typeof(NavMeshHit), typeof(float), typeof(int)])),
-                ILMatcher.Stloc(),
+                ILMatcher.Stloc().CaptureAs(out var storeExtendedPosition),
             ]);
 
         if (!injector.IsValid)
@@ -187,7 +185,6 @@ internal static class PatchBlobAI
             return instructions;
         }
 
-        var storeExtendedPosition = injector.GetRelativeInstruction(1).Clone();
         var skipGetNavMeshPositionLabel = generator.DefineLabel();
         return injector
             .GoToMatchEnd()

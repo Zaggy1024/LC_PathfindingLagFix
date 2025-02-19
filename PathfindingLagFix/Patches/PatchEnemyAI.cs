@@ -366,7 +366,7 @@ internal static class PatchEnemyAI
                 ILMatcher.Ldarg(0),
                 ILMatcher.Call(Reflection.m_StartOfRound_get_Instance),
                 ILMatcher.Ldfld(Reflection.f_StartOfRound_allPlayerScripts),
-                ILMatcher.Ldloc(),
+                ILMatcher.Ldloc().CaptureAs(out var loadIndexInstruction),
                 ILMatcher.Opcode(OpCodes.Ldelem_Ref),
                 ILMatcher.Callvirt(Reflection.m_Component_get_transform),
                 ILMatcher.Callvirt(Reflection.m_Transform_get_position),
@@ -382,7 +382,6 @@ internal static class PatchEnemyAI
             return instructions;
         }
 
-        var loadIndexInstruction = injector.GetRelativeInstruction(3);
         var skipAsyncLabel = generator.DefineLabel();
         var skipSyncLabel = generator.DefineLabel();
         return injector

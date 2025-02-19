@@ -55,7 +55,7 @@ internal static class PatchFlowermanAI
         var injector = new ILInjector(instructions)
             .Find([
                 ILMatcher.Call(m_FlowermanAI_ChooseClosestNodeToPlayer),
-                ILMatcher.Branch()
+                ILMatcher.Branch().CaptureLabelOperandAs(out var endLabel),
             ])
             .GoToMatchEnd();
         if (!injector.IsValid)
@@ -71,7 +71,6 @@ internal static class PatchFlowermanAI
         //     targetNode = node;
         //     SetDestinationToPosition(node.position, checkForPath: true);
         // + }
-        var endLabel = (Label)injector.GetRelativeInstruction(-1).operand;
         injector
             .Find([
                 ILMatcher.Ldarg(0),
