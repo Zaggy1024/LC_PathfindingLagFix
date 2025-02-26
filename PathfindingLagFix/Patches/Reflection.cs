@@ -57,6 +57,22 @@ namespace PathfindingLagFix.Patches
                     continue;
                 if (!method.IsGenericMethodDefinition)
                     continue;
+
+                var candidateParameters = method.GetParameters();
+                if (parameters.Length != candidateParameters.Length)
+                    continue;
+                var parametersEqual = true;
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    if (parameters[i] != candidateParameters[i].ParameterType)
+                    {
+                        parametersEqual = false;
+                        break;
+                    }
+                }
+                if (!parametersEqual)
+                    continue;
+
                 return method.MakeGenericMethod(genericArgs);
             }
 
