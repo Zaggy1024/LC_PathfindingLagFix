@@ -141,7 +141,10 @@ internal class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator
 
     public ILInjector FindLabel(Label label)
     {
-        matchEnd = index + 1;
+        if (label == default)
+            return this;
+
+        matchEnd = index;
 
         for (index = 0; index < instructions.Count; index++)
         {
@@ -274,22 +277,24 @@ internal class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator
         return instructions.GetRange(start, size);
     }
 
-    public Label DefineLabel()
+    public ILInjector DefineLabel(out Label label)
     {
         if (generator == null)
             throw new InvalidOperationException("No ILGenerator was provided");
-        return generator.DefineLabel();
+
+        label = generator.DefineLabel();
+        return this;
     }
 
-    public Label AddLabel()
+    public ILInjector AddLabel(out Label label)
     {
-        var label = DefineLabel();
-        Instruction.labels.Add(label);
-        return label;
+        DefineLabel(out label);
+        return AddLabel(label);
     }
 
     public ILInjector AddLabel(Label label)
     {
+        Instruction = new(Instruction);
         Instruction.labels.Add(label);
         return this;
     }
@@ -318,9 +323,12 @@ internal class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator
             throw new InvalidOperationException(INVALID);
 
         var labels = Instruction.labels;
+        Instruction = new(Instruction);
+        Instruction.labels.Clear();
+
         this.instructions.InsertRange(index, instructions);
         Instruction.labels.AddRange(labels);
-        labels.Clear();
+
         if (matchEnd >= index)
             matchEnd += instructions.Length;
         return this;
@@ -360,18 +368,26 @@ internal class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator
     public ILInjector RemoveLastMatch()
     {
         GetLastMatchRange(out var start, out var size);
+        var labels = instructions[start].labels;
         instructions.RemoveRange(start, size);
         index = start;
         matchEnd = start;
+        instructions[start].labels.AddRange(labels);
         return this;
     }
 
-    public ILInjector ReplaceLastMatch(params CodeInstruction[] instructions)
+    public ILInjector ReplaceLastMatch(params CodeInstruction[] replacementInstructions)
     {
-        var labels = Instruction.labels;
-        RemoveLastMatch();
-        Instruction.labels.AddRange(labels);
-        Insert(instructions);
+        if (replacementInstructions.Length == 0)
+            throw new ArgumentException("Cannot replace a match with an empty array.");
+
+        GetLastMatchRange(out var start, out var size);
+        var labels = instructions[start].labels;
+        instructions.RemoveRange(start, size);
+        instructions.InsertRange(start, replacementInstructions);
+        index = start;
+        matchEnd = start + replacementInstructions.Length;
+        instructions[start].labels.AddRange(labels);
         return this;
     }
 

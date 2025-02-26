@@ -135,7 +135,7 @@ internal static class PatchBlobAI
             ])
             .Find([
                 ILMatcher.Call(typeof(Physics).GetMethod(nameof(Physics.Raycast), [typeof(Ray), typeof(RaycastHit).MakeByRefType(), typeof(float), typeof(int), typeof(QueryTriggerInteraction)])),
-                ILMatcher.Opcode(OpCodes.Brfalse).CaptureLabelOperandAs(out var noRaycastHitLabel),
+                ILMatcher.Opcode(OpCodes.Brfalse).CaptureOperandAs(out Label noRaycastHitLabel),
             ]);
 
         if (!injector.IsValid)

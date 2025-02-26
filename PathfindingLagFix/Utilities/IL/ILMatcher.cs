@@ -1,8 +1,8 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 
 using HarmonyLib;
 
@@ -18,15 +18,12 @@ internal interface ILMatcher
         return new InstructionCapturingMatcher(this, variable);
     }
 
-    public ILMatcher CaptureLabelOperandAs(out Label label)
+    public unsafe ILMatcher CaptureOperandAs<T>(out T operand) where T : unmanaged
     {
-        label = default;
-        unsafe
+        operand = default;
+        fixed (T* operandPtr = &operand)
         {
-            fixed (Label* labelPtr = &label)
-            {
-                return new LabelCapturingMatcher(this, labelPtr);
-            }
+            return new OperandCapturingMatcher<T>(this, operandPtr);
         }
     }
 
@@ -44,41 +41,41 @@ internal interface ILMatcher
 
     public static ILMatcher Branch() => new BranchMatcher();
 
-    public static ILMatcher Ldfld(FieldInfo field)
+    public static ILMatcher Ldfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldfld() was null\n{new StackTrace()}");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Ldfld, field);
     }
-    public static ILMatcher Ldsfld(FieldInfo field)
+    public static ILMatcher Ldsfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldsfld() was null\n{new StackTrace()}");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldsfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Ldsfld, field);
     }
-    public static ILMatcher Stfld(FieldInfo field)
+    public static ILMatcher Stfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stfld() was null\n{new StackTrace()}");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Stfld, field);
     }
-    public static ILMatcher Stsfld(FieldInfo field)
+    public static ILMatcher Stsfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stsfld() was null\n{new StackTrace()}");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stsfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Stsfld, field);
     }
 
-    public static ILMatcher Callvirt(MethodBase method)
+    public static ILMatcher Callvirt(MethodBase method, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (method == null)
-            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Callvirt() was null\n{new StackTrace()}");
+            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Callvirt() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
         return OpcodeOperand(OpCodes.Callvirt, method);
     }
-    public static ILMatcher Call(MethodBase method)
+    public static ILMatcher Call(MethodBase method, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (method == null)
-            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Call() was null\n{new StackTrace()}");
+            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Call() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
         return OpcodeOperand(OpCodes.Call, method);
     }
 
@@ -171,7 +168,7 @@ internal class LdcI32Matcher(int? value) : ILMatcher
 {
     private readonly int? value = value;
 
-    public bool Matches(CodeInstruction instruction) => (!value.HasValue && instruction.GetLdcI32().HasValue) || instruction.GetLdcI32() == value;
+    public bool Matches(CodeInstruction instruction) => value.HasValue ? instruction.GetLdcI32() == value : instruction.GetLdcI32().HasValue;
 }
 
 internal class BranchMatcher : ILMatcher
@@ -205,16 +202,16 @@ internal class InstructionCapturingMatcher(ILMatcher matcher, CodeInstruction va
     }
 }
 
-internal unsafe class LabelCapturingMatcher(ILMatcher matcher, Label* label) : ILMatcher
+internal unsafe class OperandCapturingMatcher<T>(ILMatcher matcher, T* operand) : ILMatcher where T : unmanaged
 {
     private readonly ILMatcher matcher = matcher;
-    private readonly Label* label = label;
+    private readonly T* operand = operand;
 
     public bool Matches(CodeInstruction instruction)
     {
         var isMatch = matcher.Matches(instruction);
         if (isMatch)
-            *label = (Label)instruction.operand;
+            *operand = (T)instruction.operand;
         return isMatch;
     }
 }
