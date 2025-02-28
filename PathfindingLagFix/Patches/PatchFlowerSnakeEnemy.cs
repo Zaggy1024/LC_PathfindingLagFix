@@ -123,7 +123,7 @@ internal static class PatchFlowerSnakeEnemy
                 ILMatcher.Callvirt(Reflection.m_Transform_get_position),
                 ILMatcher.Stloc(),
             ])
-            .GoToPush(3);
+            .GoToPush(4);
 
         if (!injector.IsValid)
         {

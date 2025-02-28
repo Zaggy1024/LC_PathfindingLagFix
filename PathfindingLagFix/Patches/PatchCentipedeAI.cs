@@ -107,7 +107,7 @@ internal static class PatchCentipedeAI
 
         var skipEarlyReturn = generator.DefineLabel();
         return injector
-            .GoToPush(3)
+            .GoToPush(4)
             .InsertAfterBranch([
                 new(OpCodes.Ldarg_0),
                 new(OpCodes.Ldarg_1),

@@ -197,7 +197,7 @@ internal static class PatchBlobAI
                 new(OpCodes.Call, typeof(PatchBlobAI).GetMethod(nameof(SetBlobNavMeshPosition), BindingFlags.NonPublic | BindingFlags.Static, [typeof(BlobAI), typeof(int), typeof(Vector3)])),
             ])
             .Back(2)
-            .GoToPush(4)
+            .GoToPush(5)
             .InsertAfterBranch([
                 // var extendedPosition = PatchBlobAI.GetBlobNavMeshPosition(this, i);
                 new(OpCodes.Ldarg_0),

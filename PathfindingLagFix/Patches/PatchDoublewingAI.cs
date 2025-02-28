@@ -106,7 +106,7 @@ internal static class PatchDoublewingAI
 
         var skipAsyncLabel = generator.DefineLabel();
         return injector
-            .GoToPush(6)
+            .GoToPush(7)
             .Insert([
                 new(OpCodes.Ldsfld, typeof(PatchDoublewingAI).GetField(nameof(useAsync), BindingFlags.NonPublic | BindingFlags.Static)),
                 new(OpCodes.Brfalse_S, skipAsyncLabel),
