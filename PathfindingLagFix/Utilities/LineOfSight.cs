@@ -29,9 +29,7 @@ internal static class LineOfSight
 
             if (checkLOSToPosition.HasValue)
             {
-                var segmentCenter = (segmentStart + segmentEnd) * 0.5f;
-                var verticalOffset = Vector3.up * 0.25f;
-                if (!Physics.Linecast(segmentCenter + verticalOffset, checkLOSToPosition.Value + verticalOffset, StartOfRound.Instance.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore))
+                if (!Physics.Linecast(segmentStart, checkLOSToPosition.Value + Vector3.up * 0.3f, StartOfRound.Instance.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore))
                     return true;
             }
 
