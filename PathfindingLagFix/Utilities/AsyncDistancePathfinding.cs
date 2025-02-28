@@ -103,7 +103,7 @@ internal static class AsyncDistancePathfinding
     private static readonly ProfilerMarker ScheduleMarker = new("Schedule Job");
 #endif
 
-    internal static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst)
+    internal static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst, bool calculateDistance = false)
     {
 #if BENCHMARKING
         using var startJobsMarkerAuto = StartJobsMarker.Auto();
@@ -121,7 +121,7 @@ internal static class AsyncDistancePathfinding
 #endif
 
         ref var job = ref status.Job;
-        job.Initialize(agent.agentTypeID, agent.areaMask, position, status.SortedPositions);
+        job.Initialize(agent.agentTypeID, agent.areaMask, position, status.SortedPositions, calculateDistance);
 
 #if BENCHMARKING
         using var scheduleMarkerAuto = new TogglableProfilerAuto(ScheduleMarker);
