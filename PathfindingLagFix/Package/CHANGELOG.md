@@ -1,3 +1,10 @@
+## Version 2.2.0 (Beta)
+- Patched masked to use the cached elevator controller instead of finding it fresh every AI interval.
+- Patched the method to find the main entrance to use a cache and avoid a `FindObjectsOfType` call when masked are pathing to it.
+- Patched hygroderes to reduce the physics casts per frame from 8 to 1.
+- Patched the maneater AI to avoid synchronous pathfinding when the adult is sneaking and when it checks if it is stuck.
+- Patched coilheads' player targeting pathfinding to run asynchronously.
+
 ## Version 2.1.1
 - Fixed a bug that caused distance pathfinding to get incorrect results when the jobs take a long time. This fixes a bug that could cause bracken to path in strange ways, especially on large interiors like Titan.
 

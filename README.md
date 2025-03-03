@@ -33,12 +33,21 @@ The enemy behaviors currently patched to run their pathfinding off the main thre
   - Selection of a node to run away to after dismounting the player
 - Manticoil:
   - The search for a node to fly to when it is disturbed by a player at close range
+- Maneater:
+  - The search for a node to lurk near the player at when protecting its nest
+  - The check to see if it is stuck and unable to path anywhere
 
 Other changes include:
+- General:
+  - Patched two main entrance getter functions to use cached instances of the entrance teleports. This will mostly have an effect on performance when masked are pathfinding.
 - Bracken:
   - A vanilla bug that causes the bracken to stand in place if spotted within 5 units will no longer occur with the async pathfinding solution.
 - Tulip snake:
   - A patch to prevent small stutters due to calls to `Object.FindObjectsByType<FlowerSnakeEnemy>()`.
+- Masked:
+  - A patch to make pathing to the elevator use a cached `MineshaftElevatorController`.
+- Hygrodere:
+  - A patch reduce the number of physics casts per frame from 8 down to 1, halving the cost of its update function.
 
 ## Options
 
