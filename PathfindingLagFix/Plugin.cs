@@ -27,6 +27,10 @@ public class Plugin : BaseUnityPlugin
 
         ConfigOptions.BindAllOptions(Config);
 
+#if BENCHMARKING
+        PatchAddProfilerMarkers.ApplyPatches(harmony);
+#endif
+
         harmony.PatchAll(typeof(PatchEnemyAI));
         harmony.PatchAll(typeof(PatchFlowermanAI));
         harmony.PatchAll(typeof(PatchCentipedeAI));

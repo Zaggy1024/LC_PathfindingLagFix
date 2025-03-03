@@ -19,6 +19,12 @@ internal class ILInjector(IEnumerable<CodeInstruction> instructions, ILGenerator
 
     private int matchEnd = -1;
 
+    public int Index
+    {
+        get => index;
+        set => index = value;
+    }
+
     public ILInjector GoToStart()
     {
         matchEnd = index;
