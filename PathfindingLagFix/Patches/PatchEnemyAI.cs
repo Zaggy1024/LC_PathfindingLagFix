@@ -406,5 +406,6 @@ internal static class PatchEnemyAI
         AsyncDistancePathfinding.RemoveStatus(__instance);
         AsyncPlayerPathfinding.RemoveStatus(__instance);
         AsyncRoamingPathfinding.RemoveStatus(__instance);
+        PatchCaveDwellerAI.RemoveStatus(__instance);
     }
 }
