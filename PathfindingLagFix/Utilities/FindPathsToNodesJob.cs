@@ -21,6 +21,7 @@ internal struct FindPathsToNodesJob : IJobFor
     [NativeDisableContainerSafetyRestriction] private static NativeArray<NavMeshQuery> StaticThreadQueries;
 
     private const float MAX_ORIGIN_DISTANCE = 5;
+    private static readonly Vector3 MAX_ORIGIN_EXTENTS = new(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
     private const float MAX_ENDPOINT_DISTANCE = 1.5f;
     private const float MAX_ENDPOINT_DISTANCE_SQR = MAX_ENDPOINT_DISTANCE * MAX_ENDPOINT_DISTANCE;
 
@@ -165,8 +166,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
         var query = ThreadQueriesRef[ThreadIndex];
 
-        var originExtents = new Vector3(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
-        var origin = query.MapLocation(Origin, originExtents, AgentTypeID, AreaMask);
+        var origin = query.MapLocation(Origin, MAX_ORIGIN_EXTENTS, AgentTypeID, AreaMask);
 
         if (!query.IsValid(origin))
         {
