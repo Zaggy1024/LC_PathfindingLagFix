@@ -1,4 +1,4 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 using System;
 
 namespace PathfindingLagFix;
@@ -67,17 +67,12 @@ internal struct ConfigOptions
 
     private static void UpdateCurrentOptions()
     {
-        switch (presetOption.Value)
+        CurrentOptions = presetOption.Value switch
         {
-            case ConfigPreset.OnlyFixes:
-                CurrentOptions = OnlyFixesPreset;
-                break;
-            case ConfigPreset.Vanilla:
-                CurrentOptions = VanillaPreset;
-                break;
-            default:
-                throw new InvalidOperationException($"Unknown preset {presetOption.Value}");
-        }
+            ConfigPreset.OnlyFixes => OnlyFixesPreset,
+            ConfigPreset.Vanilla => VanillaPreset,
+            _ => throw new InvalidOperationException($"Unknown preset {presetOption.Value}"),
+        };
 
         if (distancePathfindingFallbackNodeSelectionOption.Value != DistancePathfindingFallbackNodeSelectionType.UsePreset)
             CurrentOptions.DistancePathfindingFallbackNodeSelection = distancePathfindingFallbackNodeSelectionOption.Value;
