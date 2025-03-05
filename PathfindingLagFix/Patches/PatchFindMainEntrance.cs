@@ -84,6 +84,11 @@ internal static class PatchFindMainEntrance
             return true;
 
         var teleport = GetMainEntrance(getOutsideEntrance);
+        if (teleport == null)
+        {
+            __result = Vector3.zero;
+            return false;
+        }
         __result = getTeleportPosition ? teleport.entrancePoint.position : teleport.transform.position;
         return false;
     }
