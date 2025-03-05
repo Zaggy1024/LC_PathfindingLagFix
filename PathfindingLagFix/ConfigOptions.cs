@@ -1,4 +1,4 @@
-using BepInEx.Configuration;
+﻿using BepInEx.Configuration;
 using System;
 
 namespace PathfindingLagFix;
@@ -78,6 +78,10 @@ internal struct ConfigOptions
             CurrentOptions.DistancePathfindingFallbackNodeSelection = distancePathfindingFallbackNodeSelectionOption.Value;
         if (asyncDistancePathfindingMostOptimalDistanceBehaviorOption.Value != AsyncDistancePathfindingMostOptimalDistanceBehaviorType.UsePreset)
             CurrentOptions.AsyncDistancePathfindingMostOptimalDistanceBehavior = asyncDistancePathfindingMostOptimalDistanceBehaviorOption.Value;
+
+        Plugin.Instance.Logger.LogInfo($"{Plugin.MOD_UNIQUE_NAME} {Plugin.MOD_VERSION} is using preset {presetOption.Value} with options:");
+        Plugin.Instance.Logger.LogInfo($"    {nameof(DistancePathfindingFallbackNodeSelection)} = {CurrentOptions.DistancePathfindingFallbackNodeSelection} ({distancePathfindingFallbackNodeSelectionOption.Value})");
+        Plugin.Instance.Logger.LogInfo($"    {nameof(AsyncDistancePathfindingMostOptimalDistanceBehavior)} = {CurrentOptions.AsyncDistancePathfindingMostOptimalDistanceBehavior} ({asyncDistancePathfindingMostOptimalDistanceBehaviorOption.Value})");
     }
 }
 
