@@ -1,3 +1,6 @@
+## Version 2.2.1 (Beta)
+- Fixed an error that would occur in `MaskedPlayerEnemy.Start()` on moons with no main entrance.
+
 ## Version 2.2.0 (Beta)
 - Patched masked to use the cached elevator controller instead of finding it fresh every AI interval.
 - Patched the method to find the main entrance to use a cache and avoid a `FindObjectsOfType` call when masked are pathing to it.
