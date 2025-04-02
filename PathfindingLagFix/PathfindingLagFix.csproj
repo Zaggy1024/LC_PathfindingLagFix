@@ -11,7 +11,7 @@
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
         <DebugType>embedded</DebugType>
         <Optimize>True</Optimize>
-        <DefineConstants>BENCHMARKING</DefineConstants>
+        <DefineConstants>VISUALIZERS;BENCHMARKING</DefineConstants>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

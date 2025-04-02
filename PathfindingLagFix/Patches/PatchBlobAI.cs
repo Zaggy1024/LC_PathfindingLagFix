@@ -21,9 +21,71 @@ internal static class PatchBlobAI
         internal int index = 0;
         internal RaycastHit[] hits = new RaycastHit[8];
         internal Vector3[] navmeshPositions = new Vector3[8];
+
+#if VISUALIZERS
+        internal Transform serverPositionVisualizer;
+        internal Transform[] boneTargetVisualizers;
+#endif
     }
 
     private static IDMap<BlobUpdateData> blobUpdateIndices = new(() => new(), 0);
+
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(BlobAI.Update))]
+    private static void UpdatePostfix(BlobAI __instance)
+    {
+#if VISUALIZERS
+        ref var data = ref blobUpdateIndices[__instance.thisEnemyIndex];
+
+        if (data.boneTargetVisualizers == null)
+        {
+            static Transform CreateVisualizer(string name, Transform parent, Material material)
+            {
+                var serverPositionVisualizer = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                serverPositionVisualizer.name = name;
+                serverPositionVisualizer.transform.SetParent(parent, worldPositionStays: false);
+                serverPositionVisualizer.transform.localPosition = Vector3.zero;
+                serverPositionVisualizer.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                Object.Destroy(serverPositionVisualizer.GetComponent<Collider>());
+                serverPositionVisualizer.GetComponent<Renderer>().sharedMaterial = material;
+                return serverPositionVisualizer.transform;
+            }
+
+            var blobVisualizerRoot = new GameObject("Blob Visualizers").transform;
+
+            var shader = Shader.Find("HDRP/Lit");
+            data.serverPositionVisualizer = CreateVisualizer("Server Position Visualizer", blobVisualizerRoot, new Material(shader)
+            {
+                color = Color.white,
+            });
+
+            data.boneTargetVisualizers = new Transform[8];
+
+            for (var i = 0; i < __instance.SlimeBonePositions.Length; i++)
+            {
+                data.boneTargetVisualizers[i] = CreateVisualizer("Target Visualizer", blobVisualizerRoot, new Material(shader)
+                {
+                    color = Color.green,
+                });
+
+                CreateVisualizer("Bone Visualizer", __instance.SlimeBones[i].transform, new Material(shader)
+                {
+                    color = Color.red,
+                });
+
+                CreateVisualizer("Raycast Visualizer", __instance.SlimeRaycastTargets[i], new Material(shader)
+                {
+                    color = Color.blue,
+                });
+            }
+        }
+
+        data.serverPositionVisualizer.position = __instance.serverPosition;
+
+        for (var i = 0; i < __instance.SlimeBonePositions.Length; i++)
+            data.boneTargetVisualizers[i].position = __instance.SlimeBonePositions[i];
+#endif
+    }
 
     private static int GetBlobUpdateIndex(BlobAI blob)
     {
