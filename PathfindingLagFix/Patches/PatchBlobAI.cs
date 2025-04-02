@@ -151,6 +151,10 @@ internal static class PatchBlobAI
         //   }
         var updateIndexLocal = generator.DeclareLocal(typeof(int));
         var injector = new ILInjector(instructions)
+            .Find([
+                ILMatcher.Ldfld(typeof(EnemyAI).GetField(nameof(EnemyAI.serverPosition))),
+                ILMatcher.Stloc(),
+            ])
             .Insert([
                 // var updateIndex = PatchBlobAI.GetBlobUpdateIndex(this);
                 new(OpCodes.Ldarg_0),
