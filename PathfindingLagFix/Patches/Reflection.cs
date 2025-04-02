@@ -61,7 +61,17 @@ namespace PathfindingLagFix.Patches
                 if (!method.IsGenericMethodDefinition)
                     continue;
 
-                var candidateParameters = method.GetParameters();
+                MethodInfo specializedMethod;
+                try
+                {
+                    specializedMethod = method.MakeGenericMethod(genericArgs);
+                }
+                catch (ArgumentException)
+                {
+                    continue;
+                }
+
+                var candidateParameters = specializedMethod.GetParameters();
                 if (parameters.Length != candidateParameters.Length)
                     continue;
                 var parametersEqual = true;
@@ -76,7 +86,7 @@ namespace PathfindingLagFix.Patches
                 if (!parametersEqual)
                     continue;
 
-                return method.MakeGenericMethod(genericArgs);
+                return specializedMethod;
             }
 
             return null;
