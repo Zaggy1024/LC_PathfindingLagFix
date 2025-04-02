@@ -18,7 +18,7 @@ internal static class PatchBlobAI
 
     private struct BlobUpdateData()
     {
-        internal int index = 0;
+        internal int index = -1;
         internal RaycastHit[] hits = new RaycastHit[8];
         internal Vector3[] navmeshPositions = new Vector3[8];
 
