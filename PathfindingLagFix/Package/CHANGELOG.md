@@ -1,3 +1,6 @@
+## Version 2.2.1
+- Fixed blobs often being stretched to the origin for a while after they spawn.
+
 ## Version 2.2.0
 - Patched masked to use the cached elevator controller instead of finding it fresh every AI interval.
 - Patched the method to find the main entrance to use a cache and avoid a `FindObjectsOfType` call when masked are pathing to it.
