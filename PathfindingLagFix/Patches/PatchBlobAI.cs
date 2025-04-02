@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -210,5 +210,10 @@ internal static class PatchBlobAI
                 new(OpCodes.Brfalse_S, skipGetNavMeshPositionLabel),
             ])
             .ReleaseInstructions();
+    }
+
+    internal static void RemoveStatus(EnemyAI enemy)
+    {
+        blobUpdateIndices[enemy.thisEnemyIndex] = new();
     }
 }
