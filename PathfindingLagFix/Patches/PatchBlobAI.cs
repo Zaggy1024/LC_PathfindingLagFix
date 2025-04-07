@@ -52,6 +52,7 @@ internal static class PatchBlobAI
             }
 
             var blobVisualizerRoot = new GameObject("Blob Visualizers").transform;
+            blobVisualizerRoot.SetParent(__instance.transform);
 
             var shader = Shader.Find("HDRP/Lit");
             data.serverPositionVisualizer = CreateVisualizer("Server Position Visualizer", blobVisualizerRoot, new Material(shader)
