@@ -4,6 +4,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Experimental.AI;
 
 using PathfindingLib.API;
@@ -20,9 +21,7 @@ internal struct FindPathsToNodesJob : IJobFor
 {
     [NativeDisableContainerSafetyRestriction] private static NativeArray<NavMeshQuery> StaticThreadQueries;
 
-    private const float MAX_ORIGIN_DISTANCE = 5;
-    private static readonly Vector3 MAX_ORIGIN_EXTENTS = new(MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE, MAX_ORIGIN_DISTANCE);
-    private const float MAX_ENDPOINT_DISTANCE = 1.5f;
+    private const float MAX_ENDPOINT_DISTANCE = 1.55f;
     private const float MAX_ENDPOINT_DISTANCE_SQR = MAX_ENDPOINT_DISTANCE * MAX_ENDPOINT_DISTANCE;
 
     [ReadOnly, NativeSetThreadIndex] internal int ThreadIndex;
@@ -31,6 +30,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
     [ReadOnly] private int AgentTypeID;
     [ReadOnly] private int AreaMask;
+    [ReadOnly] private Vector3 QueryExtents;
     [ReadOnly] private Vector3 Origin;
     [ReadOnly, NativeDisableContainerSafetyRestriction] private NativeArray<Vector3> Destinations;
     [ReadOnly] private bool CalculateDistance;
@@ -58,6 +58,10 @@ internal struct FindPathsToNodesJob : IJobFor
 
         AgentTypeID = agentTypeID;
         AreaMask = areaMask;
+
+        var buildSettings = NavMesh.GetSettingsByID(agentTypeID);
+        QueryExtents = new Vector3(buildSettings.agentRadius, buildSettings.agentHeight, buildSettings.agentRadius);
+
         Origin = origin;
         CalculateDistance = calculateDistance;
 
@@ -166,7 +170,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
         var query = ThreadQueriesRef[ThreadIndex];
 
-        var origin = query.MapLocation(Origin, MAX_ORIGIN_EXTENTS, AgentTypeID, AreaMask);
+        var origin = query.MapLocation(Origin, QueryExtents, AgentTypeID, AreaMask);
 
         if (!query.IsValid(origin))
         {
@@ -175,8 +179,7 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         var destination = Destinations[index];
-        var destinationExtents = new Vector3(MAX_ENDPOINT_DISTANCE, MAX_ENDPOINT_DISTANCE, MAX_ENDPOINT_DISTANCE);
-        var destinationLocation = query.MapLocation(destination, destinationExtents, AgentTypeID, AreaMask);
+        var destinationLocation = query.MapLocation(destination, QueryExtents, AgentTypeID, AreaMask);
         if (!query.IsValid(destinationLocation))
         {
             Statuses[index] = PathQueryStatus.Failure;
