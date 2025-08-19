@@ -5,6 +5,6 @@
     "description": "Improves overall performance by threading vanilla AI pathfinding and patching slow methods.",
     "dependencies": [
         "BepInEx-BepInExPack-5.4.2100",
-        "Zaggy1024-PathfindingLib-0.0.14"
+        "Zaggy1024-PathfindingLib-2.1.3"
     ]
 }

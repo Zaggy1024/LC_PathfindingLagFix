@@ -58,9 +58,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
         AgentTypeID = agentTypeID;
         AreaMask = areaMask;
-
-        var buildSettings = NavMesh.GetSettingsByID(agentTypeID);
-        QueryExtents = new Vector3(buildSettings.agentRadius, buildSettings.agentHeight, buildSettings.agentRadius);
+        QueryExtents = NavMeshQueryUtils.GetQueryExtents(agentTypeID);
 
         Origin = origin;
         CalculateDistance = calculateDistance;
