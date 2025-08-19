@@ -209,12 +209,6 @@ internal static class AsyncDistancePathfinding
                 if (nodeStatus.GetResult() == PathQueryStatus.Success)
                 {
                     var path = job.GetPath(i);
-                    if (path[0].polygon.IsNull())
-                    {
-                        Plugin.Instance.Logger.LogWarning($"{i}: Path is null");
-                        continue;
-                    }
-
                     if (avoidLineOfSight && LineOfSight.PathIsBlockedByLineOfSight(path))
                         continue;
 

@@ -16,7 +16,7 @@ internal static class LineOfSight
     /// <param name="checkLOSToPosition">A position to check line of sight to for each segment, allowing target player
     /// LOS checks equivalent to <see cref="EnemyAI.PathIsIntersectedByLineOfSight"/>.</param>
     /// <returns>Whether the path is blocked.</returns>
-    public static bool PathIsBlockedByLineOfSight(NativeArray<NavMeshLocation> path, Vector3? checkLOSToPosition = null)
+    public static bool PathIsBlockedByLineOfSight(NativeArray<Vector3> path, Vector3? checkLOSToPosition = null)
     {
         if (path.Length <= 1)
             return false;
@@ -24,8 +24,8 @@ internal static class LineOfSight
         // Check if any segment of the path enters a player's line of sight.
         for (int segment = 1; segment < path.Length && segment < 16; segment++)
         {
-            var segmentStart = path[segment - 1].position;
-            var segmentEnd = path[segment].position;
+            var segmentStart = path[segment - 1];
+            var segmentEnd = path[segment];
 
             if (checkLOSToPosition.HasValue)
             {

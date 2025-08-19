@@ -57,18 +57,18 @@ internal static class PatchCaveDwellerAI
 
     private static IDMap<StuckCheckStatus> stuckCheckStatuses = new(() => new(), 1);
 
-    private static bool IsPathInvalidWhileBodyIsVisible(CaveDwellerAI caveDweller, NativeArray<NavMeshLocation> path)
+    private static bool IsPathInvalidWhileBodyIsVisible(CaveDwellerAI caveDweller, NativeArray<Vector3> path)
     {
         if (path.Length <= 1)
             return false;
 
         var targetPos = caveDweller.targetPlayer.transform.position;
         var targetDist = Vector3.Distance(caveDweller.transform.position, targetPos);
-        var segmentStart = path[0].position;
+        var segmentStart = path[0];
 
         for (int segment = 1; segment < path.Length; segment++)
         {
-            var segmentEnd = path[segment].position;
+            var segmentEnd = path[segment];
             var segmentCenter = (segmentStart + segmentEnd) * 0.5f;
 
             if (Vector3.Distance(segmentCenter, targetPos) < 8)
@@ -130,11 +130,6 @@ internal static class PatchCaveDwellerAI
                 if (nodeStatus.GetResult() == PathQueryStatus.Success)
                 {
                     var path = job.GetPath(i);
-                    if (path[0].polygon.IsNull())
-                    {
-                        Plugin.Instance.Logger.LogWarning($"{i}: Path is null");
-                        continue;
-                    }
 
                     if (caveDweller.wasBodyVisible)
                     {

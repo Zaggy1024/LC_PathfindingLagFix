@@ -38,7 +38,7 @@ internal struct FindPathsToNodesJob : IJobFor
     [ReadOnly, NativeDisableContainerSafetyRestriction] private NativeArray<bool> Canceled;
 
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<PathQueryStatus> Statuses;
-    [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<NavMeshLocation> Paths;
+    [WriteOnly, NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction] internal NativeArray<Vector3> Paths;
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<int> PathSizes;
     [WriteOnly, NativeDisableContainerSafetyRestriction] internal NativeArray<float> PathDistances;
 
@@ -135,12 +135,12 @@ internal struct FindPathsToNodesJob : IJobFor
             Canceled[0] = true;
     }
 
-    public NativeArray<NavMeshLocation> GetPathBuffer(int index)
+    public NativeArray<Vector3> GetPathBuffer(int index)
     {
         return Paths.GetSubArray(index * NavMeshQueryUtils.RecommendedCornerCount, NavMeshQueryUtils.RecommendedCornerCount);
     }
 
-    public NativeArray<NavMeshLocation> GetPath(int index)
+    public NativeArray<Vector3> GetPath(int index)
     {
         return Paths.GetSubArray(index * NavMeshQueryUtils.RecommendedCornerCount, PathSizes[index]);
     }
@@ -243,7 +243,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
         // Check if the end of the path is close enough to the target.
         var pathCorners = GetPath(index);
-        var endPosition = pathCorners[^1].position;
+        var endPosition = pathCorners[^1];
         var endDistance = (endPosition - destination).sqrMagnitude;
         if (endDistance > MAX_ENDPOINT_DISTANCE_SQR)
         {
@@ -255,7 +255,7 @@ internal struct FindPathsToNodesJob : IJobFor
         {
             var distance = 0f;
             for (var i = 1; i < pathCorners.Length; i++)
-                distance += Vector3.Distance(pathCorners[i - 1].position, pathCorners[i].position);
+                distance += Vector3.Distance(pathCorners[i - 1], pathCorners[i]);
             PathDistances[index] = distance;
         }
 
