@@ -1,5 +1,8 @@
+## Version 2.2.3
+- Use PathfindingLib's `NavMeshQueryUtils.GetQueryExtents()` to determine the search area when mapping path origins and destinations.
+
 ## Version 2.2.2
-- Corrected the search area when mapping starts and ends of paths onto the navmesh to match `NavMesh.CalculatePath()`.
+- Corrected the search area when mapping path origins and destinations onto the navmesh to match `NavMesh.CalculatePath()`.
 
 ## Version 2.2.1
 - Fixed blobs often being stretched to the origin for a while after they spawn.
