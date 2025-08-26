@@ -1,3 +1,6 @@
+## Version 2.2.4
+- Use PathfindingLib's `AgentExtensions.GetQueryFilter()` to get cost overrides and produce paths that match `NavMeshAgent.CalculatePath()` more closely.
+
 ## Version 2.2.3
 - Use PathfindingLib's `NavMeshQueryUtils.GetQueryExtents()` to determine the search area when mapping path origins and destinations.
 
