@@ -110,7 +110,6 @@ internal static class AsyncDistancePathfinding
 #endif
 
         var agent = enemy.agent;
-        var position = agent.GetPathOrigin();
 
 #if BENCHMARKING
         using var sortMarkerAuto = new TogglableProfilerAuto(SortMarker);
@@ -121,7 +120,7 @@ internal static class AsyncDistancePathfinding
 #endif
 
         ref var job = ref status.Job;
-        job.Initialize(agent.agentTypeID, agent.areaMask, position, status.SortedPositions, calculateDistance);
+        job.Initialize(agent, status.SortedPositions, calculateDistance);
 
 #if BENCHMARKING
         using var scheduleMarkerAuto = new TogglableProfilerAuto(ScheduleMarker);

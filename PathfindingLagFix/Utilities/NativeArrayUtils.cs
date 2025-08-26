@@ -1,4 +1,7 @@
-﻿using Unity.Collections;
+﻿using System;
+
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -14,5 +17,12 @@ internal static class NativeArrayUtils
             for (var i = 0; i < count; i++)
                 ptr[i] = value;
         }
+    }
+
+    internal static unsafe void CopyFrom<T>(this NativeArray<T> array, Span<T> span) where T : struct
+    {
+        if (array.Length < span.Length)
+            throw new InvalidOperationException($"NativeArray size {array.Length} is smaller than span size {span.Length}.");
+        UnsafeUtility.MemCpy(array.GetUnsafePtr(), UnsafeUtility.AddressOf(ref span[0]), span.Length);
     }
 }

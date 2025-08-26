@@ -43,7 +43,6 @@ internal static class AsyncRoamingPathfinding
 
             var search = enemy.currentSearch;
             var agent = enemy.agent;
-            var position = enemy.agent.GetPathOrigin();
 
 #if BENCHMARKING
             using var getNodePositionsMarkerAuto = new TogglableProfilerAuto(GetNodePositionsMarker);
@@ -62,12 +61,12 @@ internal static class AsyncRoamingPathfinding
             using var initAndScheduleJobsMarkerAuto = InitAndScheduleJobsMarker.Auto();
 #endif
 
-            PathsFromEnemyJob.Initialize(agent.agentTypeID, agent.areaMask, position, nodePositions, nodeCount, calculateDistance: search.startedSearchAtSelf);
+            PathsFromEnemyJob.Initialize(agent, nodePositions, nodeCount, calculateDistance: search.startedSearchAtSelf);
             PathsFromEnemyJobHandle = PathsFromEnemyJob.ScheduleByRef(nodes.Count, default);
 
             if (!search.startedSearchAtSelf)
             {
-                PathsFromSearchStartJob.Initialize(agent.agentTypeID, agent.areaMask, search.currentSearchStartPosition, nodePositions, nodeCount, calculateDistance: true);
+                PathsFromSearchStartJob.Initialize(-1, agent.areaMask, costs: default, search.currentSearchStartPosition, nodePositions, nodeCount, calculateDistance: true);
                 PathsFromSearchStartJobHandle = PathsFromSearchStartJob.ScheduleByRef(nodes.Count, default);
             }
         }

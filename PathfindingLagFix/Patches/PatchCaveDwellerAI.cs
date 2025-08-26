@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -203,7 +203,7 @@ internal static class PatchCaveDwellerAI
         if (!status.jobStarted)
         {
             var agent = caveDweller.agent;
-            job.Initialize(agent.agentTypeID, agent.areaMask, caveDweller.transform.position, status.nodePositions);
+            job.Initialize(agent, status.nodePositions);
             status.jobHandle = job.ScheduleByRef(status.nodePositions.Length, default);
             status.jobStarted = true;
         }

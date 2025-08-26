@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 using Unity.Collections.LowLevel.Unsafe;
@@ -30,6 +31,7 @@ internal struct FindPathsToNodesJob : IJobFor
 
     [ReadOnly] private int AgentTypeID;
     [ReadOnly] private int AreaMask;
+    [ReadOnly] private NativeArray<float> Costs;
     [ReadOnly] private Vector3 QueryExtents;
     [ReadOnly] private Vector3 Origin;
     [ReadOnly, NativeDisableContainerSafetyRestriction] private NativeArray<Vector3> Destinations;
@@ -46,7 +48,7 @@ internal struct FindPathsToNodesJob : IJobFor
     private static readonly ProfilerMarker InitializeJobMarker = new("Initialize Job");
 #endif
 
-    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, int count, bool calculateDistance = false)
+    public void Initialize(int agentTypeID, int areaMask, Span<float> costs, Vector3 origin, Vector3[] candidates, int count, bool calculateDistance = false)
     {
 #if BENCHMARKING
         using var markerAuto = InitializeJobMarker.Auto();
@@ -58,6 +60,10 @@ internal struct FindPathsToNodesJob : IJobFor
 
         AgentTypeID = agentTypeID;
         AreaMask = areaMask;
+        if (costs == default)
+            Costs.SetAllElements(1f);
+        else
+            Costs.CopyFrom(costs);
         QueryExtents = NavMeshQueryUtils.GetQueryExtents(agentTypeID);
 
         Origin = origin;
@@ -75,20 +81,40 @@ internal struct FindPathsToNodesJob : IJobFor
         NativeArray<Vector3>.Copy(candidates, Destinations, count);
     }
 
-    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
+    public void Initialize(NavMeshAgent agent, Vector3[] candidates, int count, bool calculateDistance = false)
     {
-        Initialize(agentTypeID, areaMask, origin, candidates, candidates.Length, calculateDistance);
+        agent.GetQueryFilter(out var agentTypeID, out var areaMask, out var costs);
+        Initialize(agentTypeID, areaMask, costs, agent.GetPathOrigin(), candidates, count, calculateDistance);
     }
 
-    public void Initialize(int agentTypeID, int areaMask, Vector3 origin, List<Vector3> candidates, bool calculateDistance = false)
+    public void Initialize(int agentTypeID, int areaMask, Span<float> costs, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
     {
-        Initialize(agentTypeID, areaMask, origin, NoAllocHelpers.ExtractArrayFromListT(candidates), candidates.Count, calculateDistance);
+        Initialize(agentTypeID, areaMask, costs, origin, candidates, candidates.Length, calculateDistance);
+    }
+
+    public void Initialize(NavMeshAgent agent, Vector3[] candidates, bool calculateDistance = false)
+    {
+        agent.GetQueryFilter(out var agentTypeID, out var areaMask, out var costs);
+        Initialize(agentTypeID, areaMask, costs, agent.GetPathOrigin(), candidates, calculateDistance);
+    }
+
+    public void Initialize(int agentTypeID, int areaMask, Span<float> costs, Vector3 origin, List<Vector3> candidates, bool calculateDistance = false)
+    {
+        Initialize(agentTypeID, areaMask, costs, origin, NoAllocHelpers.ExtractArrayFromListT(candidates), candidates.Count, calculateDistance);
+    }
+
+    public void Initialize(NavMeshAgent agent, List<Vector3> candidates, bool calculateDistance = false)
+    {
+        agent.GetQueryFilter(out var agentTypeID, out var areaMask, out var costs);
+        Initialize(agentTypeID, areaMask, costs, agent.GetPathOrigin(), candidates, calculateDistance);
     }
 
     private void CreateFixedArrays()
     {
         if (Canceled.Length == 1)
             return;
+
+        Costs = new(32, Allocator.Persistent);
 
         Canceled = new(1, Allocator.Persistent);
     }
@@ -185,7 +211,7 @@ internal struct FindPathsToNodesJob : IJobFor
         }
 
         // Find the shortest path through the polygons of the navmesh.
-        var status = query.BeginFindPath(origin, destinationLocation, AreaMask);
+        var status = query.BeginFindPath(origin, destinationLocation, AreaMask, Costs);
         if (status.GetResult() == PathQueryStatus.Failure)
         {
             Statuses[index] = status;

@@ -9,7 +9,7 @@ using PathfindingLib;
 namespace PathfindingLagFix;
 
 [BepInPlugin(MOD_UNIQUE_NAME, MOD_NAME, MOD_VERSION)]
-[BepInDependency(PathfindingLibPlugin.PluginGUID, "2.1.3")]
+[BepInDependency(PathfindingLibPlugin.PluginGUID, "2.3.0")]
 public class Plugin : BaseUnityPlugin
 {
     public const string MOD_NAME = "PathfindingLagFix";

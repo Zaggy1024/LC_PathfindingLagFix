@@ -54,7 +54,6 @@ internal static class AsyncPlayerPathfinding
 #endif
 
             var agent = enemy.agent;
-            var position = enemy.agent.GetPathOrigin();
 
 #if BENCHMARKING
             using var collectMarkerAuto = new TogglableProfilerAuto(CollectMarker);
@@ -82,7 +81,7 @@ internal static class AsyncPlayerPathfinding
             collectMarkerAuto.Pause();
 #endif
 
-            PathsToPlayersJob.Initialize(agent.agentTypeID, agent.areaMask, position, validPlayerPositions);
+            PathsToPlayersJob.Initialize(agent, validPlayerPositions);
 
 #if BENCHMARKING
             using var scheduleMarkerAuto = new TogglableProfilerAuto(ScheduleMarker);
