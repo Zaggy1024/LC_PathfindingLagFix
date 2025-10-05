@@ -1,3 +1,6 @@
+## Version 2.2.5
+- Bump the PathfindingLib requirement to 2.4.0 for v73 support.
+
 ## Version 2.2.4
 - Use PathfindingLib's `AgentExtensions.GetQueryFilter()` to get cost overrides and produce paths that match `NavMeshAgent.CalculatePath()` more closely.
 

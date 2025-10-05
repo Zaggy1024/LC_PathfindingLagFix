@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
@@ -14,7 +14,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string MOD_NAME = "PathfindingLagFix";
     public const string MOD_UNIQUE_NAME = "Zaggy1024." + MOD_NAME;
-    public const string MOD_VERSION = "2.2.4";
+    public const string MOD_VERSION = "2.2.5";
 
     private readonly Harmony harmony = new(MOD_UNIQUE_NAME);
 
