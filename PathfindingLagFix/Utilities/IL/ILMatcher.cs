@@ -32,6 +32,10 @@ internal interface ILMatcher
         return new DebuggingMatcher(this);
     }
 
+    public static ILMatcher StackDelta(int pushes, int pops) => new StackDeltaMatcher(pushes, pops);
+    public static ILMatcher Push(int pushes) => StackDelta(pushes, 0);
+    public static ILMatcher Pop(int pops) => StackDelta(0, pops);
+
     public static ILMatcher Not(ILMatcher matcher) => new NotMatcher(matcher);
 
     public static ILMatcher Opcode(OpCode opcode) => new OpcodeMatcher(opcode);
@@ -45,44 +49,81 @@ internal interface ILMatcher
     public static ILMatcher Ldc(int? value = null) => new LdcI32Matcher(value);
     public static ILMatcher LdcF32(float? value = null) => new LdcF32Matcher(value);
 
+    public unsafe static ILMatcher LdlocCapture(out int localIndex)
+    {
+        localIndex = -1;
+        fixed (int* localIndexPtr = &localIndex)
+        {
+            return new LdlocCapturingMatcher(localIndexPtr);
+        }
+    }
+    public unsafe static ILMatcher LdlocFrom(in int localIndex)
+    {
+        fixed (int* localIndexPtr = &localIndex)
+        {
+            return new LdlocByRefMatcher(localIndexPtr);
+        }
+    }
+    public unsafe static ILMatcher StlocCapture(out int localIndex)
+    {
+        localIndex = -1;
+        fixed (int* localIndexPtr = &localIndex)
+        {
+            return new StlocCapturingMatcher(localIndexPtr);
+        }
+    }
+    public unsafe static ILMatcher StlocFrom(in int localIndex)
+    {
+        fixed (int* localIndexPtr = &localIndex)
+        {
+            return new StlocByRefMatcher(localIndexPtr);
+        }
+    }
+
     public static ILMatcher Branch() => new BranchMatcher();
 
     public static ILMatcher Ldfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldfld() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Ldfld, field);
     }
     public static ILMatcher Ldsfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldsfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Ldsfld() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Ldsfld, field);
     }
     public static ILMatcher Stfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stfld() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Stfld, field);
     }
     public static ILMatcher Stsfld(FieldInfo field, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (field == null)
-            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stsfld() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
+            Plugin.Instance.Logger.LogWarning($"Field passed to ILMatcher.Stsfld() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
         return new OpcodeOperandMatcher(OpCodes.Stsfld, field);
     }
 
     public static ILMatcher Callvirt(MethodBase method, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (method == null)
-            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Callvirt() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
+            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Callvirt() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
         return OpcodeOperand(OpCodes.Callvirt, method);
     }
     public static ILMatcher Call(MethodBase method, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
     {
         if (method == null)
-            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Call() was null at {sourceFilePath}#{sourceLineNumber} ({callerName})");
+            Plugin.Instance.Logger.LogWarning($"Method passed to ILMatcher.Call() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
         return OpcodeOperand(OpCodes.Call, method);
+    }
+    public static ILMatcher Newobj(ConstructorInfo ctor, [CallerMemberName] string callerName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int sourceLineNumber = 0)
+    {
+        if (ctor == null)
+            Plugin.Instance.Logger.LogWarning($"Constructor passed to ILMatcher.Newobj() was null at {sourceFilePath}:{sourceLineNumber} ({callerName})");
+        return OpcodeOperand(OpCodes.Newobj, ctor);
     }
 
     public static ILMatcher Predicate(Func<CodeInstruction, bool> predicate) => new PredicateMatcher(predicate);
@@ -95,6 +136,14 @@ internal interface ILMatcher
             return predicate(field);
         });
     }
+}
+
+internal class StackDeltaMatcher(int pushes, int pops) : ILMatcher
+{
+    private readonly int pushes = pushes;
+    private readonly int pops = pops;
+
+    public bool Matches(CodeInstruction instruction) => instruction.PushCount() == pushes && instruction.PopCount() == pops;
 }
 
 internal class NotMatcher(ILMatcher matcher) : ILMatcher
@@ -227,6 +276,52 @@ internal unsafe class OperandCapturingMatcher<T>(ILMatcher matcher, T* operand) 
             *operand = (T)instruction.operand;
         return isMatch;
     }
+}
+
+internal unsafe class LdlocCapturingMatcher(int* localIndex) : ILMatcher
+{
+    private readonly int* localIndex = localIndex;
+
+    public bool Matches(CodeInstruction instruction)
+    {
+        var matchedIndex = instruction.GetLdlocIndex();
+        if (matchedIndex.HasValue)
+        {
+            *localIndex = matchedIndex.Value;
+            return true;
+        }
+        return false;
+    }
+}
+
+internal unsafe class LdlocByRefMatcher(int* localIndexPtr) : ILMatcher
+{
+    private readonly int* localIndexPtr = localIndexPtr;
+
+    public bool Matches(CodeInstruction instruction) => instruction.GetLdlocIndex() == *localIndexPtr;
+}
+
+internal unsafe class StlocCapturingMatcher(int* localIndex) : ILMatcher
+{
+    private readonly int* localIndex = localIndex;
+
+    public bool Matches(CodeInstruction instruction)
+    {
+        var matchedIndex = instruction.GetStlocIndex();
+        if (matchedIndex.HasValue)
+        {
+            *localIndex = matchedIndex.Value;
+            return true;
+        }
+        return false;
+    }
+}
+
+internal unsafe class StlocByRefMatcher(int* localIndexPtr) : ILMatcher
+{
+    private readonly int* localIndexPtr = localIndexPtr;
+
+    public bool Matches(CodeInstruction instruction) => instruction.GetStlocIndex() == *localIndexPtr;
 }
 
 internal class DebuggingMatcher(ILMatcher matcher) : ILMatcher
