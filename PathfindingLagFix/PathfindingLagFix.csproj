@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
@@ -32,12 +32,6 @@
     <PropertyGroup>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     </PropertyGroup>
-
-    <Target Name="DeleteOldPackageFiles" AfterTargets="AfterBuild">
-        <Delete Files="$(MSBuildProjectDirectory)\Package\LICENSE" />
-        <Delete Files="$(MSBuildProjectDirectory)\Package\README.md" />
-        <Delete Files="$(MSBuildProjectDirectory)\Package\PathfindingLagFix.dll" />
-    </Target>
 
     <Target Name="CopyToPackage" AfterTargets="AfterBuild" Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
         <Copy SourceFiles="$(SolutionDir)LICENSE" DestinationFolder="$(MSBuildProjectDirectory)\Package" />
