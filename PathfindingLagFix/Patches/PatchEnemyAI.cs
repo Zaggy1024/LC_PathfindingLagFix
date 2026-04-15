@@ -117,6 +117,9 @@ internal static class PatchEnemyAI
 
         var switchLabels = (Label[])injector.Instruction.operand;
 
+        // + while (StopPreviousJobAndStartNewOne(this))
+        // +   yield return null;
+        //   yield return null;
         injector
             .FindLabel(switchLabels[0]);
 
@@ -126,9 +129,6 @@ internal static class PatchEnemyAI
             return instructions;
         }
 
-        // + while (StopPreviousJobAndStartNewOne(this))
-        // +   yield return null;
-        //   yield return null;
         var skipYieldReturnNullOnJobNotStartedLabel = generator.DefineLabel();
         injector
             .InsertAfterBranch([
@@ -216,6 +216,9 @@ internal static class PatchEnemyAI
             ])
             .AddLabel(skipEliminateNodeFromAsyncLabel);
 
+        // - else if (agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
+        // + else if (!PatchEnemyAI.useAsyncRoaming && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
+        //     EliminateNodeFromSearch(i);
         injector
             .Find(ILMatcher.Call(Reflection.m_EnemyAI_PathIsIntersectedByLineOfSight))
             .Find([
@@ -229,9 +232,6 @@ internal static class PatchEnemyAI
             return instructions;
         }
 
-        // - else if (agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        // + else if (!PatchEnemyAI.useAsyncRoaming && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        //     EliminateNodeFromSearch(i);
         var skipEliminateNodeFromSyncLabel = generator.DefineLabel();
         var existingContinueLabel = (Label)injector.LastMatchedInstruction.operand;
         injector
