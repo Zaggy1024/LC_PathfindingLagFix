@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Reflection;
@@ -87,6 +87,24 @@ internal class PatchAddProfilerMarkers
             return instructions;
 
         Plugin.Instance.Logger.LogInfo($"Begin caller transpiler for {method.DeclaringType.FullName}::{method.Name}");
+
+        if (Reflection.m_EnemyAI_PathIsIntersectedByLineOfSight == null)
+        {
+            Plugin.Instance.Logger.LogError("Method info for EnemyAI::PathIsIntersectedByLineOfSight() not found.");
+            return instructions;
+        }
+
+        if (Reflection.m_EnemyAI_ChooseFarthestNodeFromPosition == null)
+        {
+            Plugin.Instance.Logger.LogError("Method info for EnemyAI::ChooseFarthestNodeFromPosition() not found.");
+            return instructions;
+        }
+
+        if (Reflection.m_EnemyAI_ChooseClosestNodeToPosition == null)
+        {
+            Plugin.Instance.Logger.LogError("Method info for EnemyAI::ChooseClosestNodeToPosition() not found.");
+            return instructions;
+        }
 
         var injector = new ILInjector(instructions);
         var callIndex = 0;
