@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -460,6 +461,27 @@ internal static class PatchEnemyAI
             ])
             .AddLabel(skipAsyncLabel)
             .ReleaseInstructions();
+    }
+
+    [HarmonyTranspiler]
+    [HarmonyPatch(nameof(EnemyAI.ChooseFarthestNodeFromPosition))]
+    private static IEnumerable<CodeInstruction> ChooseFarthestNodeFromPositionTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase method)
+    {
+        var capDistanceArg = Array.FindIndex(method.GetParameters(), parameter => parameter.Name == "capDistance") + 1;
+        if (capDistanceArg > 0)
+        {
+            var capDistanceUsages = 0;
+            foreach (var instruction in instructions)
+            {
+                if (instruction.GetLdargIndex() == capDistanceArg)
+                    capDistanceUsages++;
+            }
+            if (capDistanceUsages == 1)
+                return instructions;
+        }
+
+        Plugin.Instance.Logger.LogError($"{nameof(EnemyAI)}.{method.Name}()'s capDistance argument usages have changed, patches need updating.");
+        return instructions;
     }
 
     [HarmonyPostfix]
