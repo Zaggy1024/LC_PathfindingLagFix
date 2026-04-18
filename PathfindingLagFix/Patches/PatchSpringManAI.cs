@@ -26,14 +26,10 @@ internal class PatchSpringManAI
         //     if (PlayerIsTargetable(StartOfRound.Instance.allPlayerScripts[j])) {
         //       ..
         // -     if (PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[j].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
-        // +     if (canUseAsync ? PatchEnemyAI.IsAsyncPathToPlayerInvalid(this, j) : PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[j].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
-        //         continue;
-        //       if (Physics.Linecast(base.transform.position + Vector3.up * 0.5f, StartOfRound.Instance.allPlayerScripts[j].gameplayCamera.transform.position, StartOfRound.Instance.collidersAndRoomMaskAndDefault))
-        //         continue;
-        //       if (Vector3.Distance(base.transform.position, StartOfRound.Instance.allPlayerScripts[j].transform.position) >= 30)
-        //         continue;
-        //       SwitchToBehaviourState(1);
-        //       return;
+        // +     if (canUseAsync ? PatchEnemyAI.IsAsyncPathToPlayerInvalid(this, j) : PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[j].transform.position, calculatePathDistance: false, avoidLineOfSight: false)) {
+        //         SwitchToBehaviourState(1);
+        //         return;
+        //       }
         //     }
         //   }
         var canUseAsyncLocal = generator.DeclareLocal(typeof(bool));
