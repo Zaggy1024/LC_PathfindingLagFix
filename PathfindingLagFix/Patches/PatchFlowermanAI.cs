@@ -80,7 +80,7 @@ internal static class PatchFlowermanAI
                 ILMatcher.Ldc(0),
                 ILMatcher.Ldc(0),
                 ILMatcher.Ldc(50),
-                ILMatcher.Ldc(0),
+                ILMatcher.Ldc(-1),
                 ILMatcher.Call(Reflection.m_EnemyAI_ChooseFarthestNodeFromPosition),
             ]);
         if (!injector.IsValid)
