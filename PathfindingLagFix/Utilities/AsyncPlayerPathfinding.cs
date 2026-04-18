@@ -68,7 +68,7 @@ internal static class AsyncPlayerPathfinding
             for (var i = 0; i < allPlayers.Length; i++)
             {
                 var player = allPlayers[i];
-                if (!EnemyAiPlayerTargetCompat.IsPlayerTargetable(enemy, player))
+                if (!enemy.PlayerIsTargetable(player))
                 {
                     playerJobIndices[i] = -1;
                     continue;
