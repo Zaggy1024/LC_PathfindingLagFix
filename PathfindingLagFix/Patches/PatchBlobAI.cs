@@ -125,6 +125,7 @@ internal static class PatchBlobAI
         // + var updateIndex = PatchBlobAI.GetBlobUpdateIndex(this);
         //   for (int i = 0; i < SlimeRaycastTargets.Length; i++)
         //   {
+        //       SimulateSurfaceTensionInRaycasts(i);
         //       var direction = SlimeRaycastTargets[i].position - centerPoint.position;
         //       slimeRay = new Ray(vector, direction);
         // -     RaycastCollisionWithPlayers(Vector3.Distance(vector, SlimeBones[i].transform.position));
