@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 
+using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
@@ -15,11 +15,33 @@ namespace PathfindingLagFix.Utilities;
 
 internal static class AsyncPlayerPathfinding
 {
-    private static readonly IDMap<EnemyToPlayerPathfindingStatus> Statuses = new(() => new EnemyToPlayerPathfindingStatus(), 1);
+    [Flags]
+    internal enum PathOptions : byte
+    {
+        None = 0,
+        GroundCast = 1,
+        RequirePath = 2,
+    }
+
+    const byte PlayerPathFlagsMax = (byte)(PathOptions.GroundCast | PathOptions.RequirePath);
+
+    private static IDMap<EnemyToPlayerPathfindingStatus>[] CreateStatusMaps()
+    {
+        var result = new IDMap<EnemyToPlayerPathfindingStatus>[PlayerPathFlagsMax];
+        for (byte i = 0; i < PlayerPathFlagsMax; i++)
+        {
+            var flags = (PathOptions)i + 1;
+            result[i] = new(() => new EnemyToPlayerPathfindingStatus(flags), 16);
+        }
+        return result;
+    }
+
+    private static readonly IDMap<EnemyToPlayerPathfindingStatus>[] Statuses = CreateStatusMaps();
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
-        Statuses[enemy.thisEnemyIndex] = new EnemyToPlayerPathfindingStatus();
+        for (byte i = 0; i < PlayerPathFlagsMax; i++)
+            Statuses[i][enemy.thisEnemyIndex].Invalidate();
     }
 
 #if BENCHMARKING
@@ -28,7 +50,7 @@ internal static class AsyncPlayerPathfinding
     private static readonly ProfilerMarker ScheduleMarker = new("Schedule Job");
 #endif
 
-    internal class EnemyToPlayerPathfindingStatus
+    internal class EnemyToPlayerPathfindingStatus(PathOptions pathFlags)
     {
         internal enum JobsStatus
         {
@@ -39,10 +61,12 @@ internal static class AsyncPlayerPathfinding
         }
 
         internal FindPathsToNodesJob PathsToPlayersJob;
-        internal JobHandle PathsToPlayersJobHandle;
+        private AssignGroundCastPointsAsDestinationsJob AssignDestinationsJob;
+        internal JobHandle JobHandle;
 
-        private int[] playerJobIndices = [];
-        private readonly List<Vector3> validPlayerPositions = [];
+        private NativeArray<RaycastCommand> raycastCommands;
+        private NativeArray<RaycastHit> raycastHits;
+        private NativeArray<Vector3> playerPositions;
         private float inFlightJobsTime = float.NegativeInfinity;
         private float currentJobsTime = float.NegativeInfinity;
         private bool[] playersPathable = [];
@@ -59,34 +83,72 @@ internal static class AsyncPlayerPathfinding
             using var collectMarkerAuto = new TogglableProfilerAuto(CollectMarker);
 #endif
             var allPlayers = StartOfRound.Instance.allPlayerScripts;
-            if (playerJobIndices.Length != allPlayers.Length)
-                playerJobIndices = new int[allPlayers.Length];
+            if (playerPositions.Length != allPlayers.Length)
+            {
+                Clear();
 
-            validPlayerPositions.Clear();
+                playerPositions = new(allPlayers.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+                if (pathFlags.HasFlag(PathOptions.GroundCast))
+                {
+                    raycastCommands = new(allPlayers.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+                    raycastHits = new(allPlayers.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+                }
+            }
 
-            var jobIndex = 0;
             for (var i = 0; i < allPlayers.Length; i++)
             {
                 var player = allPlayers[i];
+
                 if (!enemy.PlayerIsTargetable(player))
                 {
-                    playerJobIndices[i] = -1;
+                    playerPositions[i] = FindPathsToNodesJob.INVALID_DESTINATION;
+                    if (pathFlags.HasFlag(PathOptions.GroundCast))
+                    {
+                        raycastCommands[i] = default;
+                        raycastHits[i] = default;
+                    }
                     continue;
                 }
 
-                playerJobIndices[i] = jobIndex++;
-                validPlayerPositions.Add(player.transform.position);
+                var playerPosition = player.transform.position;
+                playerPositions[i] = playerPosition;
+                if (pathFlags.HasFlag(PathOptions.GroundCast))
+                {
+                    var queryParameters = QueryParameters.Default with
+                    {
+                        layerMask = StartOfRound.Instance.collidersAndRoomMaskAndDefault,
+                        hitTriggers = QueryTriggerInteraction.Ignore,
+                    };
+                    raycastCommands[i] = new RaycastCommand(playerPosition, Vector3.down, queryParameters, 5f);
+                    raycastHits[i] = default;
+                }
             }
 #if BENCHMARKING
             collectMarkerAuto.Pause();
-#endif
-
-            PathsToPlayersJob.Initialize(agent, validPlayerPositions);
-
-#if BENCHMARKING
             using var scheduleMarkerAuto = new TogglableProfilerAuto(ScheduleMarker);
 #endif
-            PathsToPlayersJobHandle = PathsToPlayersJob.ScheduleByRef(validPlayerPositions.Count, default);
+
+            JobHandle prerequisiteJobHandle = default;
+
+            if (pathFlags.HasFlag(PathOptions.GroundCast))
+            {
+                prerequisiteJobHandle = RaycastCommand.ScheduleBatch(raycastCommands, raycastHits, 1, prerequisiteJobHandle);
+            }
+
+            if (pathFlags.HasFlag(PathOptions.GroundCast) && pathFlags.HasFlag(PathOptions.RequirePath))
+            {
+                AssignDestinationsJob.Initialize(raycastHits, playerPositions);
+                prerequisiteJobHandle = AssignDestinationsJob.ScheduleByRef(playerPositions.Length, prerequisiteJobHandle);
+            }
+
+            if (pathFlags.HasFlag(PathOptions.RequirePath))
+            {
+                PathsToPlayersJob.Initialize(agent, playerPositions.Length);
+                PathsToPlayersJob.SetDestinations(playerPositions);
+                prerequisiteJobHandle = PathsToPlayersJob.ScheduleByRef(playerPositions.Length, prerequisiteJobHandle);
+            }
+
+            JobHandle = prerequisiteJobHandle;
 #if BENCHMARKING
             scheduleMarkerAuto.Pause();
 #endif
@@ -96,12 +158,7 @@ internal static class AsyncPlayerPathfinding
 
         internal bool AllJobsAreDone()
         {
-            for (var i = 0; i < validPlayerPositions.Count; i++)
-            {
-                if (PathsToPlayersJob.Statuses[i].GetResult() == PathQueryStatus.InProgress)
-                    return false;
-            }
-            return true;
+            return JobHandle.IsCompleted;
         }
 
         internal float UpdatePathsAndGetCalculationTime(EnemyAI enemy)
@@ -109,20 +166,25 @@ internal static class AsyncPlayerPathfinding
             if (!AllJobsAreDone())
                 return currentJobsTime;
 
-            if (playersPathable.Length != playerJobIndices.Length)
-                Array.Resize(ref playersPathable, playerJobIndices.Length);
+            if (playersPathable.Length != playerPositions.Length)
+                Array.Resize(ref playersPathable, playerPositions.Length);
 
-            for (var i = 0; i < playerJobIndices.Length; i++)
+            if (pathFlags.HasFlag(PathOptions.RequirePath))
             {
-                var jobIndex = playerJobIndices[i];
-                if (jobIndex == -1)
+                for (var i = 0; i < playerPositions.Length; i++)
                 {
-                    playersPathable[i] = false;
-                    continue;
+                    var status = PathsToPlayersJob.Statuses[i].GetResult();
+                    playersPathable[i] = status == PathQueryStatus.Success;
                 }
-
-                var status = PathsToPlayersJob.Statuses[jobIndex].GetResult();
-                playersPathable[i] = status == PathQueryStatus.Success;
+            }
+            else if (pathFlags.HasFlag(PathOptions.GroundCast))
+            {
+                for (var i = 0; i < playerPositions.Length; i++)
+                    playersPathable[i] = raycastHits[i].colliderInstanceID != 0;
+            }
+            else
+            {
+                throw new InvalidOperationException("Bad path flags");
             }
 
             currentJobsTime = inFlightJobsTime;
@@ -136,21 +198,30 @@ internal static class AsyncPlayerPathfinding
             return playersPathable[playerIndex];
         }
 
+        internal void Invalidate()
+        {
+            currentJobsTime = float.NegativeInfinity;
+            inFlightJobsTime = float.NegativeInfinity;
+        }
+
         internal void Clear()
         {
-            playerJobIndices = [];
-            validPlayerPositions.Clear();
+            raycastCommands.Dispose();
+            raycastHits.Dispose();
+            playerPositions.Dispose();
+
             playersPathable = [];
         }
 
         ~EnemyToPlayerPathfindingStatus()
         {
-            PathsToPlayersJob.FreeAllResources();
+            PathsToPlayersJob.FreeAllResources(disposeDestinations: false);
+            Clear();
         }
     }
 
-    internal static EnemyToPlayerPathfindingStatus GetStatus(EnemyAI enemy)
+    internal static EnemyToPlayerPathfindingStatus GetStatus(EnemyAI enemy, PathOptions flags)
     {
-        return Statuses[enemy.thisEnemyIndex];
+        return Statuses[(int)flags - 1][enemy.thisEnemyIndex];
     }
 }

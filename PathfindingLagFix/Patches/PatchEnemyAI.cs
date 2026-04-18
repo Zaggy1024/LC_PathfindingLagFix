@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
+using GameNetcodeStuff;
 
 using PathfindingLagFix.Utilities;
 using PathfindingLagFix.Utilities.IL;
@@ -15,8 +16,8 @@ namespace PathfindingLagFix.Patches;
 [HarmonyPatch(typeof(EnemyAI))]
 internal static class PatchEnemyAI
 {
-    internal readonly static MethodInfo m_CheckIfPlayerPathsAreStaleAndStartJobs = typeof(PatchEnemyAI).GetMethod(nameof(CheckIfPlayerPathsAreStaleAndStartJobs), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)]);
-    internal readonly static MethodInfo m_IsAsyncPathToPlayerInvalid = typeof(PatchEnemyAI).GetMethod(nameof(IsAsyncPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(int)]);
+    internal readonly static MethodInfo m_CheckIfPlayerPathsAreStaleAndStartJobs = typeof(PatchEnemyAI).GetMethod(nameof(CheckIfPlayerPathsAreStaleAndStartJobs), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(bool), typeof(bool)]);
+    internal readonly static MethodInfo m_IsAsyncPathToPlayerInvalid = typeof(PatchEnemyAI).GetMethod(nameof(IsAsyncPathToPlayerInvalid), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI), typeof(bool), typeof(bool), typeof(int)]);
 
     private static bool useAsyncRoaming = true;
     private static bool useAsyncPlayerPaths = true;
@@ -311,12 +312,23 @@ internal static class PatchEnemyAI
             .ReleaseInstructions();
     }
 
-    private static bool CheckIfPlayerPathsAreStaleAndStartJobs(EnemyAI enemy)
+    private static AsyncPlayerPathfinding.PathOptions GetPathOptions(bool doGroundCast, bool requirePath)
+    {
+        var result = AsyncPlayerPathfinding.PathOptions.None;
+        if (doGroundCast)
+            result |= AsyncPlayerPathfinding.PathOptions.GroundCast;
+        if (requirePath)
+            result |= AsyncPlayerPathfinding.PathOptions.RequirePath;
+        return result;
+    }
+
+    private static bool CheckIfPlayerPathsAreStaleAndStartJobs(EnemyAI enemy, bool doGroundCast, bool requirePath)
     {
         if (!useAsyncPlayerPaths)
             return false;
-
-        var status = AsyncPlayerPathfinding.GetStatus(enemy);
+        if (!doGroundCast && !requirePath)
+            return true;
+        var status = AsyncPlayerPathfinding.GetStatus(enemy, GetPathOptions(doGroundCast, requirePath));
         var pathsTime = status.UpdatePathsAndGetCalculationTime(enemy);
 
         var age = Time.time - pathsTime;
@@ -330,23 +342,67 @@ internal static class PatchEnemyAI
         return true;
     }
 
-    private static bool IsAsyncPathToPlayerInvalid(EnemyAI enemy, int index)
+    private static bool IsAsyncPathToPlayerInvalid(EnemyAI enemy, bool doGroundCast, bool requirePath, int index)
     {
-        return !AsyncPlayerPathfinding.GetStatus(enemy).CanReachPlayer(index);
+        if (!doGroundCast && !requirePath)
+            return false;
+
+        return !AsyncPlayerPathfinding.GetStatus(enemy, GetPathOptions(doGroundCast, requirePath)).CanReachPlayer(index);
     }
 
     [HarmonyTranspiler]
     [HarmonyPatch(nameof(EnemyAI.TargetClosestPlayer))]
-    private static IEnumerable<CodeInstruction> TargetClosestPlayerTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    private static IEnumerable<CodeInstruction> TargetClosestPlayerTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase method, ILGenerator generator)
     {
+        var doGroundCastParameterName = "doGroundCast";
+        var doGroundCastArg = -1;
+        var requirePathParameterName = "requirePath";
+        var requirePathArg = -1;
+
+        var parameters = method.GetParameters();
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var name = parameters[i].Name;
+            if (name == doGroundCastParameterName)
+                doGroundCastArg = i + 1;
+            else if (name == requirePathParameterName)
+                requirePathArg = i + 1;
+        }
+
+        if (doGroundCastArg == 0)
+        {
+            Plugin.Instance.Logger.LogError($"{nameof(EnemyAI)}.{method.Name}() has no parameter named {doGroundCastParameterName}.");
+            return instructions;
+        }
+
+        if (requirePathArg == 0)
+        {
+            Plugin.Instance.Logger.LogError($"{nameof(EnemyAI)}.{method.Name}() has no parameter named {requirePathParameterName}.");
+            return instructions;
+        }
+
+        var loadParameters = new CodeInstruction[] {
+            new(OpCodes.Ldarg, doGroundCastArg),
+            new(OpCodes.Ldarg, requirePathArg),
+        };
+
         // + var canUseAsync = PatchEnemyAI.CheckIfPlayerPathsAreStaleAndStartJobs(this);
         //   
         //   for (var i = 0; i < StartOfRound.Instance.connectedPlayersAmount + 1; i++) {
         //     if (!PlayerIsTargetable(StartOfRound.Instance.allPlayerScripts[i]))
         //       continue;
-        // -   if (!PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
-        // +   if (canUseAsync ? PatchEnemyAI.IsAsyncPathToPlayerInvalid(this, i) : !PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false))
+        // +   if (canUseAsync) {
+        // +     if (PatchEnemyAI.IsAsyncPathToPlayerInvalid(this, doGroundCast, requirePath, i))
+        // +       continue;
+        // +   } else
+        //     if (doGroundCast) {
+        //       if (!Physics.Raycast(StartOfRound.Instance.allPlayerScripts[i].transform.position, Vector3.down, out raycastHit, 5f, StartOfRound.Instance.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore))
+        //         continue;
+        //       if (requirePath && PathIsIntersectedByLineOfSight(raycastHit.point, calculatePathDistance: false, avoidLineOfSight: false))
+        //         continue;
+        //     } else if (requirePath && PathIsIntersectedByLineOfSight(StartOfRound.Instance.allPlayerScripts[i].transform.position, calculatePathDistance: false, avoidLineOfSight: false)) {
         //       continue;
+        //     }
         //     if (requireLineOfSight && !CheckLineOfSightForPosition(StartOfRound.Instance.allPlayerScripts[i].gameplayCamera.transform.position, viewWidth, 40))
         //       continue;
         //     tempDist = Vector3.Distance(transform.position, StartOfRound.Instance.allPlayerScripts[i].transform.position);
@@ -359,6 +415,7 @@ internal static class PatchEnemyAI
         var injector = new ILInjector(instructions)
             .Insert([
                 new(OpCodes.Ldarg_0),
+                ..loadParameters,
                 new(OpCodes.Call, m_CheckIfPlayerPathsAreStaleAndStartJobs),
                 new(OpCodes.Stloc, canUseAsyncLocal),
             ])
@@ -368,12 +425,19 @@ internal static class PatchEnemyAI
                 ILMatcher.Ldfld(Reflection.f_StartOfRound_allPlayerScripts),
                 ILMatcher.Ldloc().CaptureAs(out var loadIndexInstruction),
                 ILMatcher.Opcode(OpCodes.Ldelem_Ref),
-                ILMatcher.Callvirt(Reflection.m_Component_get_transform),
-                ILMatcher.Callvirt(Reflection.m_Transform_get_position),
-                ILMatcher.Ldc(0),
-                ILMatcher.Ldc(0),
-                ILMatcher.Ldc(0),
-                ILMatcher.Call(Reflection.m_EnemyAI_PathIsIntersectedByLineOfSight),
+                ILMatcher.Push(1),
+                ILMatcher.Push(1),
+                ILMatcher.Push(1),
+                ILMatcher.Callvirt(typeof(EnemyAI).GetMethod(nameof(EnemyAI.PlayerIsTargetable), [typeof(PlayerControllerB), typeof(bool), typeof(bool), typeof(bool)])),
+                ILMatcher.Opcode(OpCodes.Brfalse).CaptureOperandAs(out Label continueLabel),
+            ])
+            .Find([
+                ILMatcher.Ldarg(requirePathArg),
+                ILMatcher.Opcode(OpCodes.Brfalse).CaptureOperandAs(out Label pathIsValidLabel),
+            ])
+            .ReverseFind([
+                ILMatcher.Ldarg(doGroundCastArg),
+                ILMatcher.Opcode(OpCodes.Brfalse),
             ]);
 
         if (!injector.IsValid)
@@ -383,19 +447,18 @@ internal static class PatchEnemyAI
         }
 
         var skipAsyncLabel = generator.DefineLabel();
-        var skipSyncLabel = generator.DefineLabel();
         return injector
             .Insert([
                 new(OpCodes.Ldloc, canUseAsyncLocal),
                 new(OpCodes.Brfalse_S, skipAsyncLabel),
                 new(OpCodes.Ldarg_0),
+                ..loadParameters,
                 loadIndexInstruction,
                 new(OpCodes.Call, m_IsAsyncPathToPlayerInvalid),
-                new(OpCodes.Br_S, skipSyncLabel),
+                new(OpCodes.Brfalse_S, pathIsValidLabel),
+                new(OpCodes.Br_S, continueLabel),
             ])
             .AddLabel(skipAsyncLabel)
-            .GoToMatchEnd()
-            .AddLabel(skipSyncLabel)
             .ReleaseInstructions();
     }
 

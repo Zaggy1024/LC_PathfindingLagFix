@@ -14,6 +14,12 @@ internal class PatchSpringManAI
     [HarmonyPatch(nameof(SpringManAI.DoAIInterval))]
     private static IEnumerable<CodeInstruction> DoAIIntervalTranspiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
+        var pathParams = new CodeInstruction[] {
+            new(OpCodes.Ldarg_0),
+            new(OpCodes.Ldc_I4_0), // doGroundCast
+            new(OpCodes.Ldc_I4_1), // requirePath
+        };
+
         // + var canUseAsync = PatchEnemyAI.CheckIfPlayerPathsAreStaleAndStartJobs(this);
         //   
         //   for (int j = 0; j < StartOfRound.Instance.allPlayerScripts.Length; j++) {
@@ -58,7 +64,7 @@ internal class PatchSpringManAI
             .Insert([
                 new(OpCodes.Ldloc, canUseAsyncLocal),
                 new(OpCodes.Brfalse_S, skipAsyncLabel),
-                new(OpCodes.Ldarg_0),
+                ..pathParams,
                 loadIndexInstruction,
                 new(OpCodes.Call, PatchEnemyAI.m_IsAsyncPathToPlayerInvalid),
                 new(OpCodes.Br_S, skipSyncLabel),
@@ -80,7 +86,7 @@ internal class PatchSpringManAI
 
         return injector
             .Insert([
-                new(OpCodes.Ldarg_0),
+                ..pathParams,
                 new(OpCodes.Call, PatchEnemyAI.m_CheckIfPlayerPathsAreStaleAndStartJobs),
                 new(OpCodes.Stloc, canUseAsyncLocal),
             ])

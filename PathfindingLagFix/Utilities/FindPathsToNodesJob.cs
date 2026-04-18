@@ -20,6 +20,8 @@ namespace PathfindingLagFix.Utilities;
 
 internal struct FindPathsToNodesJob : IJobFor
 {
+    public static readonly Vector3 INVALID_DESTINATION = new(float.NaN, float.NaN, float.NaN);
+
     [NativeDisableContainerSafetyRestriction] private static NativeArray<NavMeshQuery> StaticThreadQueries;
 
     private const float MAX_ENDPOINT_DISTANCE = 1.55f;
@@ -78,13 +80,27 @@ internal struct FindPathsToNodesJob : IJobFor
 
         Canceled[0] = false;
 
-        NativeArray<Vector3>.Copy(candidates, Destinations, count);
+        if (candidates != null)
+        {
+            if (Destinations.IsCreated)
+                Destinations.Dispose();
+            if (count > 0)
+            {
+                Destinations = new(count, Allocator.Persistent);
+                NativeArray<Vector3>.Copy(candidates, Destinations, count);
+            }
+        }
     }
 
     public void Initialize(NavMeshAgent agent, Vector3[] candidates, int count, bool calculateDistance = false)
     {
         agent.GetQueryFilter(out var agentTypeID, out var areaMask, out var costs);
         Initialize(agentTypeID, areaMask, costs, agent.GetPathOrigin(), candidates, count, calculateDistance);
+    }
+
+    public void Initialize(NavMeshAgent agent, int count, bool calculateDistance = false)
+    {
+        Initialize(agent, null, count, calculateDistance);
     }
 
     public void Initialize(int agentTypeID, int areaMask, Span<float> costs, Vector3 origin, Vector3[] candidates, bool calculateDistance = false)
@@ -109,6 +125,11 @@ internal struct FindPathsToNodesJob : IJobFor
         Initialize(agentTypeID, areaMask, costs, agent.GetPathOrigin(), candidates, calculateDistance);
     }
 
+    public void SetDestinations(NativeArray<Vector3> destinations)
+    {
+        Destinations = destinations;
+    }
+
     private void CreateFixedArrays()
     {
         if (Canceled.Length == 1)
@@ -126,15 +147,13 @@ internal struct FindPathsToNodesJob : IJobFor
 
     private void EnsureCount(int count)
     {
-        if (Destinations.Length >= count)
+        if (Statuses.Length >= count)
             return;
 
         DisposeResizeableArrays();
 
         if (count == 0)
             return;
-
-        Destinations = new(count, Allocator.Persistent);
 
         Statuses = new(count, Allocator.Persistent);
         Paths = new(count * NavMeshQueryUtils.RecommendedCornerCount, Allocator.Persistent);
@@ -144,10 +163,8 @@ internal struct FindPathsToNodesJob : IJobFor
 
     private void DisposeResizeableArrays()
     {
-        if (!Destinations.IsCreated)
+        if (!Statuses.IsCreated)
             return;
-
-        Destinations.Dispose();
 
         Statuses.Dispose();
         Paths.Dispose();
@@ -192,6 +209,13 @@ internal struct FindPathsToNodesJob : IJobFor
         using var markerAuto = UpdateFindPathMarker.Auto(index);
 #endif
 
+        var destination = Destinations[index];
+        if (destination.Equals(INVALID_DESTINATION))
+        {
+            Statuses[index] = PathQueryStatus.Failure;
+            return;
+        }
+
         var query = ThreadQueriesRef[ThreadIndex];
 
         var origin = query.MapLocation(Origin, QueryExtents, AgentTypeID, AreaMask);
@@ -202,7 +226,6 @@ internal struct FindPathsToNodesJob : IJobFor
             return;
         }
 
-        var destination = Destinations[index];
         var destinationLocation = query.MapLocation(destination, QueryExtents, AgentTypeID, AreaMask);
         if (!query.IsValid(destinationLocation))
         {
@@ -288,9 +311,11 @@ internal struct FindPathsToNodesJob : IJobFor
         Statuses[index] = status;
     }
 
-    internal void FreeAllResources()
+    internal void FreeAllResources(bool disposeDestinations = true)
     {
         DisposeResizeableArrays();
         DisposeFixedArrays();
+        if (disposeDestinations)
+            Destinations.Dispose();
     }
 }
