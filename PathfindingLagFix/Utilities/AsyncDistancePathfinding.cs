@@ -15,7 +15,7 @@ namespace PathfindingLagFix.Utilities;
 
 internal static class AsyncDistancePathfinding
 {
-    internal const float DEFAULT_CAP_DISTANCE = 60;
+    internal const float DEFAULT_CAP_DISTANCE = 40;
 
     private static readonly IDMap<EnemyDistancePathfindingStatus> Statuses = new(() => new EnemyDistancePathfindingStatus(), 1);
 
