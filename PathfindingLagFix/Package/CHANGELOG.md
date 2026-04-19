@@ -1,3 +1,10 @@
+## Version 2.3.0
+- Updated all patches to support v81. This update will not work with prior versions.
+- The new ground raycast option in TargetClosestPlayer runs asynchronously.
+- The vanilla optimization to avoid short physics linecasts in the path-LoS intersection code is now included in all patches.
+- Fixed some edge case handling for the maneater AI sneaking patch.
+- Removed the `AsyncDistancePathfindingMostOptimalDistanceBehavior` option. The bracken stuck bug no longer exists, leaving no other vanilla enemies affected by this bug. The default is now to leave it unset for enemies that use the vanilla sliced pathfinding.
+
 ## Version 2.2.5
 - Bump the PathfindingLib requirement to 2.4.0 for v73 support.
 
