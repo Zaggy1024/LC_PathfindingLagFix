@@ -18,14 +18,21 @@ internal static class LineOfSight
     /// <returns>Whether the path is blocked.</returns>
     public static bool PathIsBlockedByLineOfSight(NativeArray<Vector3> path, Vector3? checkLOSToPosition = null)
     {
-        if (path.Length <= 1)
+        if (path.Length == 0)
+            return true;
+        if (path.Length == 1)
             return false;
 
         // Check if any segment of the path enters a player's line of sight.
+        var lastCheckedSegmentEnd = path[0];
         for (int segment = 1; segment < path.Length && segment < 16; segment++)
         {
             var segmentStart = path[segment - 1];
             var segmentEnd = path[segment];
+
+            if (segment > 5 && Vector3.Distance(lastCheckedSegmentEnd, segmentEnd) < 1.7f)
+                continue;
+            lastCheckedSegmentEnd = segmentEnd;
 
             if (checkLOSToPosition.HasValue)
             {
