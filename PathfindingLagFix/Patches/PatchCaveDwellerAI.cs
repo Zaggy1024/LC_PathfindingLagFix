@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -86,6 +86,8 @@ internal static class PatchCaveDwellerAI
 
     private static IEnumerator ChooseClosestNodeToPositionNoLOSCoroutine(CaveDwellerAI caveDweller, AsyncDistancePathfinding.EnemyDistancePathfindingStatus status, Vector3 target, int offset = 0)
     {
+        status.MostOptimalDistance = -1;
+
         if (!caveDweller.agent.isOnNavMesh)
             yield break;
 
@@ -100,7 +102,7 @@ internal static class PatchCaveDwellerAI
         {
             yield return null;
             bool complete = true;
-            var pathsLeft = Math.Min(offset, candidateCount - 1);
+            var pathsLeft = offset;
 
             var currentPosition = caveDweller.transform.position;
 
@@ -144,7 +146,7 @@ internal static class PatchCaveDwellerAI
                             continue;
                     }
 
-                    if (pathsLeft-- == 0)
+                    if (pathsLeft-- == 0 || i == candidateCount - 1)
                     {
                         result = i;
                         break;
@@ -163,10 +165,16 @@ internal static class PatchCaveDwellerAI
         {
             caveDweller.ignoredNodes.Clear();
             result = Math.Min(UnityEngine.Random.Range(6, 15), candidateCount);
+            if (result == candidateCount)
+                status.ChosenNode = null;
+            else
+                status.ChosenNode = status.SortedNodes[result];
         }
-
-        status.ChosenNode = status.SortedNodes[result];
-        status.MostOptimalDistance = Vector3.Distance(target, status.SortedPositions[result]);
+        else
+        {
+            status.ChosenNode = status.SortedNodes[result];
+            status.MostOptimalDistance = Vector3.Distance(target, status.SortedPositions[result]);
+        }
 
         while (!jobHandle.IsCompleted)
             yield return null;
@@ -181,7 +189,9 @@ internal static class PatchCaveDwellerAI
         if (!useAsync)
             return true;
         var status = AsyncDistancePathfinding.StartChoosingNode(__instance, ADULT_SNEAKING_TO_PLAYER_ID, status => ChooseClosestNodeToPositionNoLOSCoroutine(__instance, status, pos, offset));
-        __result = status.RetrieveChosenNode(out __instance.mostOptimalDistance);
+        __result = status.RetrieveChosenNode(out var mostOptimalDistance);
+        if (mostOptimalDistance >= 0)
+            __instance.mostOptimalDistance = mostOptimalDistance;
         return false;
     }
 
