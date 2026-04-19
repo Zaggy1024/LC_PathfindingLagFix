@@ -8,12 +8,10 @@ internal struct ConfigOptions
     private static readonly ConfigOptions OnlyFixesPreset = new()
     {
         DistancePathfindingFallbackNodeSelection = DistancePathfindingFallbackNodeSelectionType.BestPathable,
-        AsyncDistancePathfindingMostOptimalDistanceBehavior = AsyncDistancePathfindingMostOptimalDistanceBehaviorType.Set,
     };
     private static readonly ConfigOptions VanillaPreset = new()
     {
         DistancePathfindingFallbackNodeSelection = DistancePathfindingFallbackNodeSelectionType.Vanilla,
-        AsyncDistancePathfindingMostOptimalDistanceBehavior = AsyncDistancePathfindingMostOptimalDistanceBehaviorType.DontSet,
     };
 
     internal static ConfigOptions CurrentOptions = OnlyFixesPreset;
@@ -41,19 +39,11 @@ internal struct ConfigOptions
     private static ConfigEntry<DistancePathfindingFallbackNodeSelectionType> distancePathfindingFallbackNodeSelectionOption;
     internal DistancePathfindingFallbackNodeSelectionType DistancePathfindingFallbackNodeSelection;
 
-    private const string asyncDistancePathfindingMostOptimalDistanceBehaviorDescription =
-        "Selects whether to set the mostOptimalDistance field containing the distance to the selected node at the site where the vanilla async distance pathfinding is used.\n" +
-        "\n" +
-        "When enabled, this will fix the vanilla bug where the bracken will stand still or walk slowly towards a player instead of retreating if it is spotted within 5 units.";
-    private static ConfigEntry<AsyncDistancePathfindingMostOptimalDistanceBehaviorType> asyncDistancePathfindingMostOptimalDistanceBehaviorOption;
-    internal AsyncDistancePathfindingMostOptimalDistanceBehaviorType AsyncDistancePathfindingMostOptimalDistanceBehavior;
-
     internal static void BindAllOptions(ConfigFile file)
     {
         presetOption = BindOption(file, "General", "Preset", ConfigPreset.OnlyFixes, presetDescription);
 
         distancePathfindingFallbackNodeSelectionOption = BindOption(file, "Behavior", "DistancePathfindingFallbackNodeSelection", DistancePathfindingFallbackNodeSelectionType.UsePreset, distancePathfindingFallbackNodeSelectionDescription);
-        asyncDistancePathfindingMostOptimalDistanceBehaviorOption = BindOption(file, "Behavior", "AsyncDistancePathfindingMostOptimalDistanceBehavior", AsyncDistancePathfindingMostOptimalDistanceBehaviorType.UsePreset, asyncDistancePathfindingMostOptimalDistanceBehaviorDescription);
 
         UpdateCurrentOptions();
     }
@@ -76,12 +66,9 @@ internal struct ConfigOptions
 
         if (distancePathfindingFallbackNodeSelectionOption.Value != DistancePathfindingFallbackNodeSelectionType.UsePreset)
             CurrentOptions.DistancePathfindingFallbackNodeSelection = distancePathfindingFallbackNodeSelectionOption.Value;
-        if (asyncDistancePathfindingMostOptimalDistanceBehaviorOption.Value != AsyncDistancePathfindingMostOptimalDistanceBehaviorType.UsePreset)
-            CurrentOptions.AsyncDistancePathfindingMostOptimalDistanceBehavior = asyncDistancePathfindingMostOptimalDistanceBehaviorOption.Value;
 
         Plugin.Instance.Logger.LogInfo($"{Plugin.MOD_UNIQUE_NAME} {Plugin.MOD_VERSION} is using preset {presetOption.Value} with options:");
         Plugin.Instance.Logger.LogInfo($"    {nameof(DistancePathfindingFallbackNodeSelection)} = {CurrentOptions.DistancePathfindingFallbackNodeSelection} ({distancePathfindingFallbackNodeSelectionOption.Value})");
-        Plugin.Instance.Logger.LogInfo($"    {nameof(AsyncDistancePathfindingMostOptimalDistanceBehavior)} = {CurrentOptions.AsyncDistancePathfindingMostOptimalDistanceBehavior} ({asyncDistancePathfindingMostOptimalDistanceBehaviorOption.Value})");
     }
 }
 
@@ -91,11 +78,4 @@ enum DistancePathfindingFallbackNodeSelectionType
     BestPathable,
     Vanilla,
     DontMove,
-}
-
-enum AsyncDistancePathfindingMostOptimalDistanceBehaviorType
-{
-    UsePreset,
-    Set,
-    DontSet,
 }

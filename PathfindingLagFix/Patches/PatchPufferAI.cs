@@ -21,10 +21,7 @@ internal static class PatchPufferAI
             return false;
 
         var status = AsyncDistancePathfinding.StartChoosingFarthestNodeFromPosition(puffer, EVADE_PLAYER_ID, puffer.closestSeenPlayer.transform.position, avoidLineOfSight: true, offset: 0, capDistance: AsyncDistancePathfinding.DEFAULT_CAP_DISTANCE);
-        var node = status.RetrieveChosenNode(out var mostOptimalDistance);
-
-        if (ConfigOptions.CurrentOptions.AsyncDistancePathfindingMostOptimalDistanceBehavior == AsyncDistancePathfindingMostOptimalDistanceBehaviorType.Set)
-            puffer.mostOptimalDistance = mostOptimalDistance;
+        var node = status.RetrieveChosenNode(out _);
 
         if (node == null)
             return true;

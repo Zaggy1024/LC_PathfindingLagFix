@@ -59,7 +59,6 @@ In order to allow easy configuration of these fixes, two presets are included to
 
 They control two options that can be overridden individually:
 - DistancePathfindingFallbackNodeSelection: Sets how distance pathfinding, i.e. bracken evasion, behaves when it fails to find a valid path out of line of sight, or any other criteria. The default behavior is to only return reachable nodes. This can be changed to behave the same as vanilla, where the path may not be valid, resulting in the enemy stutter stepping towards the evasion node.
-- AsyncDistancePathfindingMostOptimalDistanceBehavior: Determines whether mostOptimalDistance is set to the distance to the chosen node for AI when they are making use of the vanilla async pathfinding solution. Not setting it causes the bracken to stop in front of the player if they spot it within 5 units.
 
 ## Thanks to
 - Lunxara - Tested the early beta versions that were crashing due to Unity silliness.

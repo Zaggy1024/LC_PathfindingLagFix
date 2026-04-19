@@ -104,10 +104,7 @@ internal static class PatchFlowermanAI
             return false;
 
         var status = AsyncDistancePathfinding.StartChoosingFarthestNodeFromPosition(flowerman, EVADE_PLAYER_ID, flowerman.targetPlayer.transform.position, avoidLineOfSight: true, offset: 0, AsyncDistancePathfinding.DEFAULT_CAP_DISTANCE);
-        var node = status.RetrieveChosenNode(out var mostOptimalDistance);
-
-        if (ConfigOptions.CurrentOptions.AsyncDistancePathfindingMostOptimalDistanceBehavior == AsyncDistancePathfindingMostOptimalDistanceBehaviorType.Set)
-            flowerman.mostOptimalDistance = mostOptimalDistance;
+        var node = status.RetrieveChosenNode(out _);
 
         if (node == null)
             return true;
