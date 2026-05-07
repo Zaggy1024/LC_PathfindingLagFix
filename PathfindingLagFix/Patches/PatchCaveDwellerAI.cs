@@ -55,7 +55,7 @@ internal static class PatchCaveDwellerAI
         }
     }
 
-    private static IDMap<StuckCheckStatus> stuckCheckStatuses = new(() => new(), 1);
+    private static EnemyMap<StuckCheckStatus> stuckCheckStatuses = new(() => new());
 
     private static bool IsPathInvalidWhileBodyIsVisible(CaveDwellerAI caveDweller, NativeArray<Vector3> path)
     {
@@ -200,7 +200,7 @@ internal static class PatchCaveDwellerAI
         if (!useAsync)
             return true;
 
-        var status = stuckCheckStatuses[caveDweller.thisEnemyIndex];
+        var status = stuckCheckStatuses[caveDweller];
         ref var job = ref status.job;
 
         if (status.nodePositions == null)
@@ -223,7 +223,7 @@ internal static class PatchCaveDwellerAI
 
     private static bool RetrieveWhetherCaveDwellerIsStuck(CaveDwellerAI caveDweller)
     {
-        var status = stuckCheckStatuses[caveDweller.thisEnemyIndex];
+        var status = stuckCheckStatuses[caveDweller];
         var result = status.IsStuck();
         status.jobStarted = false;
         return result;
@@ -311,6 +311,6 @@ internal static class PatchCaveDwellerAI
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
-        stuckCheckStatuses[enemy.thisEnemyIndex] = new();
+        stuckCheckStatuses.Remove(enemy);
     }
 }

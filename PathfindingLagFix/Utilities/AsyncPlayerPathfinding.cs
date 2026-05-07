@@ -25,23 +25,23 @@ internal static class AsyncPlayerPathfinding
 
     const byte PlayerPathFlagsMax = (byte)(PathOptions.GroundCast | PathOptions.RequirePath);
 
-    private static IDMap<EnemyToPlayerPathfindingStatus>[] CreateStatusMaps()
+    private static EnemyMap<EnemyToPlayerPathfindingStatus>[] CreateStatusMaps()
     {
-        var result = new IDMap<EnemyToPlayerPathfindingStatus>[PlayerPathFlagsMax];
+        var result = new EnemyMap<EnemyToPlayerPathfindingStatus>[PlayerPathFlagsMax];
         for (byte i = 0; i < PlayerPathFlagsMax; i++)
         {
             var flags = (PathOptions)i + 1;
-            result[i] = new(() => new EnemyToPlayerPathfindingStatus(flags), 16);
+            result[i] = new(() => new EnemyToPlayerPathfindingStatus(flags));
         }
         return result;
     }
 
-    private static readonly IDMap<EnemyToPlayerPathfindingStatus>[] Statuses = CreateStatusMaps();
+    private static readonly EnemyMap<EnemyToPlayerPathfindingStatus>[] Statuses = CreateStatusMaps();
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
         for (byte i = 0; i < PlayerPathFlagsMax; i++)
-            Statuses[i][enemy.thisEnemyIndex].Invalidate();
+            Statuses[i][enemy].Invalidate();
     }
 
 #if BENCHMARKING
@@ -222,6 +222,6 @@ internal static class AsyncPlayerPathfinding
 
     internal static EnemyToPlayerPathfindingStatus GetStatus(EnemyAI enemy, PathOptions flags)
     {
-        return Statuses[(int)flags - 1][enemy.thisEnemyIndex];
+        return Statuses[(int)flags - 1][enemy];
     }
 }

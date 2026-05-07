@@ -11,11 +11,11 @@ namespace PathfindingLagFix.Utilities;
 
 internal static class AsyncRoamingPathfinding
 {
-    private static readonly IDMap<EnemyRoamingPathfindingStatus> Statuses = new(() => new EnemyRoamingPathfindingStatus(), 1);
+    private static readonly EnemyMap<EnemyRoamingPathfindingStatus> Statuses = new(() => new EnemyRoamingPathfindingStatus());
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
-        Statuses[enemy.thisEnemyIndex] = new EnemyRoamingPathfindingStatus();
+        Statuses.Remove(enemy);
     }
 
 #if BENCHMARKING
@@ -85,6 +85,6 @@ internal static class AsyncRoamingPathfinding
 
     internal static EnemyRoamingPathfindingStatus GetStatus(EnemyAI enemy)
     {
-        return Statuses[enemy.thisEnemyIndex];
+        return Statuses[enemy];
     }
 }

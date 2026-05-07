@@ -16,7 +16,7 @@ internal static class PatchBlobAI
 {
     private static bool limitBlobUpdates = true;
 
-    private struct BlobUpdateData()
+    private class BlobUpdateData()
     {
         internal int index = -1;
         internal RaycastHit[] hits = new RaycastHit[8];
@@ -28,14 +28,14 @@ internal static class PatchBlobAI
 #endif
     }
 
-    private static IDMap<BlobUpdateData> blobUpdateIndices = new(() => new(), 0);
+    private static EnemyMap<BlobUpdateData> blobUpdateIndices = new(() => new());
 
     [HarmonyPostfix]
     [HarmonyPatch(nameof(BlobAI.Update))]
     private static void UpdatePostfix(BlobAI __instance)
     {
 #if VISUALIZERS
-        ref var data = ref blobUpdateIndices[__instance.thisEnemyIndex];
+        var data = blobUpdateIndices[__instance];
 
         if (data.boneTargetVisualizers == null)
         {
@@ -92,7 +92,7 @@ internal static class PatchBlobAI
     {
         if (!limitBlobUpdates)
             return -1;
-        ref var index = ref blobUpdateIndices[blob.thisEnemyIndex].index;
+        ref var index = ref blobUpdateIndices[blob].index;
         var result = index;
         index = (index + 1) % blob.SlimeRaycastTargets.Length;
         return result;
@@ -100,22 +100,22 @@ internal static class PatchBlobAI
 
     private static void SetBlobRayHit(BlobAI blob, int index)
     {
-        blobUpdateIndices[blob.thisEnemyIndex].hits[index] = blob.slimeRayHit;
+        blobUpdateIndices[blob].hits[index] = blob.slimeRayHit;
     }
 
     private static RaycastHit GetBlobRayHit(BlobAI blob, int index)
     {
-        return blobUpdateIndices[blob.thisEnemyIndex].hits[index];
+        return blobUpdateIndices[blob].hits[index];
     }
 
     private static Vector3 GetBlobNavMeshPosition(BlobAI blob, int index)
     {
-        return blobUpdateIndices[blob.thisEnemyIndex].navmeshPositions[index];
+        return blobUpdateIndices[blob].navmeshPositions[index];
     }
 
     private static void SetBlobNavMeshPosition(BlobAI blob, int index, Vector3 position)
     {
-        blobUpdateIndices[blob.thisEnemyIndex].navmeshPositions[index] = position;
+        blobUpdateIndices[blob].navmeshPositions[index] = position;
     }
 
     [HarmonyTranspiler]
@@ -282,6 +282,6 @@ internal static class PatchBlobAI
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
-        blobUpdateIndices[enemy.thisEnemyIndex] = new();
+        blobUpdateIndices.Remove(enemy);
     }
 }

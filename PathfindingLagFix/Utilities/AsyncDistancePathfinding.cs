@@ -17,11 +17,11 @@ internal static class AsyncDistancePathfinding
 {
     internal const float DEFAULT_CAP_DISTANCE = 40;
 
-    private static readonly IDMap<EnemyDistancePathfindingStatus> Statuses = new(() => new EnemyDistancePathfindingStatus(), 1);
+    private static readonly EnemyMap<EnemyDistancePathfindingStatus> Statuses = new(() => new EnemyDistancePathfindingStatus());
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
-        Statuses[enemy.thisEnemyIndex] = new EnemyDistancePathfindingStatus();
+        Statuses.Remove(enemy);
     }
 
     internal class EnemyDistancePathfindingStatus
@@ -137,7 +137,7 @@ internal static class AsyncDistancePathfinding
 
     internal static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, NodeSelectionCoroutine coroutine)
     {
-        var status = Statuses[enemy.thisEnemyIndex];
+        var status = Statuses[enemy];
         if (status.CurrentSearchTypeID == searchTypeID)
             return status;
         if (status.Coroutine != null)
