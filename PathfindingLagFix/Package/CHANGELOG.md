@@ -1,3 +1,6 @@
+## Version 2.3.1
+- Fixed an issue where multiple enemies spawned in the same frame could confuse their pathfinding data.
+
 ## Version 2.3.0
 - Updated all patches to support v81. This update will not work with prior versions.
 - The new ground raycast option in TargetClosestPlayer runs asynchronously.
