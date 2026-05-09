@@ -111,7 +111,7 @@ internal static class PatchCaveDwellerAI
 
             for (int i = 0; i < candidateCount; i++)
             {
-                if (caveDweller.ignoredNodes.Contains(status.SortedNodes[i].transform))
+                if (caveDweller.ignoredNodes.Contains(status.SortedNodes[i]))
                     continue;
                 var nodePosition = status.SortedPositions[i];
                 if ((hidingSpot - nodePosition).sqrMagnitude > searchWidthSqr)
