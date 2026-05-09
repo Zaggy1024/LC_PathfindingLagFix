@@ -40,6 +40,7 @@ public class Plugin : BaseUnityPlugin
         harmony.PatchAll(typeof(PatchSpringManAI));
         harmony.PatchAll(typeof(PatchBlobAI));
         harmony.PatchAll(typeof(PatchCaveDwellerAI));
+        harmony.PatchAll(typeof(PatchStingrayAI));
 
         PatchFindMainEntrance.ApplyPatches(harmony);
 
