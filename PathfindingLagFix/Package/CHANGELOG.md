@@ -1,3 +1,6 @@
+## Version 2.4.0
+- Added patches to make some gunkfish pathfinding async to remove stutters on large maps.
+
 ## Version 2.3.1
 - Fixed an issue where multiple enemies spawned in the same frame could confuse their pathfinding data.
 
