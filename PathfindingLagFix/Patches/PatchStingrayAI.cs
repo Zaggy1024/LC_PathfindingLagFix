@@ -1,12 +1,16 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
 using UnityEngine;
+using UnityEngine.Experimental.AI;
 using HarmonyLib;
 
-using PathfindingLagFix.Utilities.IL;
 using PathfindingLagFix.Utilities;
+using PathfindingLagFix.Utilities.IL;
+using PathfindingLib.Utilities;
 
 namespace PathfindingLagFix.Patches;
 
@@ -19,6 +23,7 @@ internal static class PatchStingrayAI
 
     private const int TEMPORARY_SPOT_ID = 0;
     private const int AVOID_PLAYER_ID = 1;
+    private const int NEAR_PLAYER_ID = 2;
 
     private static bool ChooseTemporarySpot(StingrayAI stingray)
     {
@@ -130,5 +135,115 @@ internal static class PatchStingrayAI
             .GoToMatchEnd()
             .AddLabel(skipVanillaAvoidPlayerLabel)
             .ReleaseInstructions();
+    }
+
+    private static IEnumerator ChooseClosestNodeToPositionStingrayCoroutine(StingrayAI stingray, AsyncDistancePathfinding.EnemyDistancePathfindingStatus status, Vector3 target)
+    {
+        if (!stingray.agent.isOnNavMesh)
+            yield break;
+
+        var candidateCount = stingray.allAINodes.Length;
+        AsyncDistancePathfinding.StartJobs(stingray, status, target, candidateCount, farthestFirst: false, calculateDistance: true);
+        var job = status.Job;
+        var jobHandle = status.JobHandle;
+
+        // Vanilla doesn't set nodesTempArray to allAINodes after sorting, and nodesTempArray is used for
+        // per-node verticality conditions.
+        GameObject[] nodesTempArray = [.. stingray.nodesTempArray];
+
+        // In vanilla, if there are no nodes within 32 units, the original pathDistance value may be used in the loop.
+        // Otherwise, the pathDistance is overwritten until the loop reaches >= 32 units, then that value is reused.
+        var initialPathDistance = stingray.pathDistance;
+
+        int result;
+        while (true)
+        {
+            yield return null;
+            bool complete = true;
+            result = 0;
+
+            var stingrayPosition = stingray.transform.position;
+            var mostOptimalDistance = 1000f;
+            var foundPath = false;
+            var pathDistance = initialPathDistance;
+            var pathsLeft = 5 * stingray.stingrayNumber % candidateCount;
+            var successfulPaths = 0;
+
+            for (int i = 14; i < candidateCount; i++)
+            {
+                var nodePosition = status.SortedPositions[i];
+
+                if (!foundPath && successfulPaths > 24)
+                    break;
+
+                if ((nodePosition - target).sqrMagnitude < 64)
+                    continue;
+
+                if (pathsLeft > 0 && foundPath)
+                {
+                    pathsLeft--;
+                    continue;
+                }
+
+                if (RoundManager.Instance.currentDungeonType >= 0)
+                {
+                    var comparePosition = nodesTempArray[i].transform.position;
+                    var dungeonInfo = RoundManager.Instance.dungeonFlowTypes[RoundManager.Instance.currentDungeonType];
+                    if (Math.Abs(comparePosition.y - stingrayPosition.y) > 12.5f * dungeonInfo.MapTileSize)
+                        continue;
+                }
+
+                if (Vector3.Distance(stingrayPosition, nodePosition) < 32)
+                {
+                    var nodeResult = job.Statuses[i].GetResult();
+                    if (nodeResult == PathQueryStatus.InProgress)
+                    {
+                        complete = false;
+                        break;
+                    }
+                    if (nodeResult != PathQueryStatus.Success)
+                        continue;
+                    var nodePath = job.GetPath(i);
+                    if (LineOfSight.PathIsBlockedByLineOfSight(nodePath, out pathDistance))
+                        continue;
+                }
+
+                successfulPaths++;
+
+                if (pathDistance < mostOptimalDistance)
+                {
+                    mostOptimalDistance = pathDistance;
+                    result = i;
+                    foundPath = true;
+                }
+
+                if (pathsLeft == 0 || i == candidateCount - 1)
+                    break;
+
+                pathsLeft--;
+            }
+            if (complete)
+                break;
+        }
+
+        job.Cancel();
+
+        status.ChosenNode = status.SortedNodes[result];
+
+        while (!jobHandle.IsCompleted)
+            yield return null;
+
+        status.Coroutine = null;
+    }
+
+    [HarmonyPrefix]
+    [HarmonyPatch(nameof(StingrayAI.ChooseClosestNodeToPositionStingray))]
+    private static bool ChooseClosestNodeToPositionStingrayPrefix(StingrayAI __instance, Vector3 pos, ref Transform __result)
+    {
+        if (!useAsync)
+            return true;
+        var status = AsyncDistancePathfinding.StartChoosingNode(__instance, NEAR_PLAYER_ID, status => ChooseClosestNodeToPositionStingrayCoroutine(__instance, status, pos));
+        __result = status.RetrieveChosenNode(out _);
+        return false;
     }
 }

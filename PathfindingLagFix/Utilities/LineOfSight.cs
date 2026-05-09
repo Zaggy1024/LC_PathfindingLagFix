@@ -1,6 +1,5 @@
 using Unity.Collections;
 using UnityEngine;
-using UnityEngine.Experimental.AI;
 
 namespace PathfindingLagFix.Utilities;
 
@@ -13,11 +12,14 @@ internal static class LineOfSight
     /// after calling CalculatePath(), optionally also checking line of sight to a target position for each segment.
     /// </summary>
     /// <param name="path">An array of navmesh positions that make up the path.</param>
+    /// <param name="pathDistance">The length of the path up until the first LoS blockage.</param>
     /// <param name="checkLOSToPosition">A position to check line of sight to for each segment, allowing target player
     /// LOS checks equivalent to <see cref="EnemyAI.PathIsIntersectedByLineOfSight"/>.</param>
     /// <returns>Whether the path is blocked.</returns>
-    public static bool PathIsBlockedByLineOfSight(NativeArray<Vector3> path, Vector3? checkLOSToPosition = null)
+    public static bool PathIsBlockedByLineOfSight(NativeArray<Vector3> path, out float pathDistance, Vector3? checkLOSToPosition = null)
     {
+        pathDistance = 0;
+
         if (path.Length == 0)
             return true;
         if (path.Length == 1)
@@ -29,6 +31,8 @@ internal static class LineOfSight
         {
             var segmentStart = path[segment - 1];
             var segmentEnd = path[segment];
+
+            pathDistance += Vector3.Distance(segmentStart, segmentEnd);
 
             if (segment > 5 && Vector3.Distance(lastCheckedSegmentEnd, segmentEnd) < 1.7f)
                 continue;
@@ -45,5 +49,18 @@ internal static class LineOfSight
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Checks line of sight along a path equivalently to how <see cref="EnemyAI.PathIsIntersectedByLineOfSight"/> does
+    /// after calling CalculatePath(), optionally also checking line of sight to a target position for each segment.
+    /// </summary>
+    /// <param name="path">An array of navmesh positions that make up the path.</param>
+    /// <param name="checkLOSToPosition">A position to check line of sight to for each segment, allowing target player
+    /// LOS checks equivalent to <see cref="EnemyAI.PathIsIntersectedByLineOfSight"/>.</param>
+    /// <returns>Whether the path is blocked.</returns>
+    public static bool PathIsBlockedByLineOfSight(NativeArray<Vector3> path, Vector3? checkLOSToPosition = null)
+    {
+        return PathIsBlockedByLineOfSight(path, out _, checkLOSToPosition);
     }
 }
