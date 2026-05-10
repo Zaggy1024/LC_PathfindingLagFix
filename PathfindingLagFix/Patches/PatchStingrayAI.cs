@@ -149,7 +149,7 @@ internal static class PatchStingrayAI
         }
 
         var candidateCount = stingray.allAINodes.Length;
-        AsyncDistancePathfinding.StartJobs(stingray, status, target, candidateCount, farthestFirst: false, calculateDistance: true);
+        AsyncDistancePathfinding.StartJobs(stingray, status, target, candidateCount, NodeSortOrder.ClosestFirst, calculateDistance: true);
         var job = status.Job;
         var jobHandle = status.JobHandle;
 

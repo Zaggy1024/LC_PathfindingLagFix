@@ -13,11 +13,23 @@ using Unity.Profiling;
 
 namespace PathfindingLagFix.Utilities;
 
+internal enum NodeSortOrder
+{
+    None,
+    ClosestFirst,
+    FarthestFirst,
+}
+
 internal static class AsyncDistancePathfinding
 {
     internal const float DEFAULT_CAP_DISTANCE = 40;
 
     private static readonly EnemyMap<EnemyDistancePathfindingStatus> Statuses = new(() => new EnemyDistancePathfindingStatus());
+
+    internal static EnemyDistancePathfindingStatus GetStatus(EnemyAI enemy)
+    {
+        return Statuses[enemy];
+    }
 
     internal static void RemoveStatus(EnemyAI enemy)
     {
@@ -39,7 +51,7 @@ internal static class AsyncDistancePathfinding
         public Transform ChosenNode;
         public float MostOptimalDistance = float.PositiveInfinity;
 
-        public void SortNodes(EnemyAI enemy, Vector3 target, bool furthestFirst)
+        public void SortNodes(EnemyAI enemy, Vector3 target, NodeSortOrder sortOrder)
         {
             var count = enemy.allAINodes.Length;
             if (enemy.allAINodes != AINodes)
@@ -56,6 +68,11 @@ internal static class AsyncDistancePathfinding
                 }
             }
 
+            if (sortOrder == NodeSortOrder.None)
+                return;
+
+            var farthestFirst = sortOrder == NodeSortOrder.FarthestFirst;
+
             static void Swap<T>(ref T a, ref T b)
             {
                 (a, b) = (b, a);
@@ -68,7 +85,7 @@ internal static class AsyncDistancePathfinding
                 for (int j = i; j > 0; j--)
                 {
                     var neighbor = (SortedPositions[j - 1] - target).sqrMagnitude;
-                    if ((neighbor <= current) ^ furthestFirst)
+                    if ((neighbor <= current) ^ farthestFirst)
                         break;
                     Swap(ref SortedNodes[j - 1], ref SortedNodes[j]);
                     Swap(ref SortedPositions[j - 1], ref SortedPositions[j]);
@@ -103,7 +120,7 @@ internal static class AsyncDistancePathfinding
     private static readonly ProfilerMarker ScheduleMarker = new("Schedule Job");
 #endif
 
-    internal static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, bool farthestFirst, bool calculateDistance = false)
+    internal static EnemyDistancePathfindingStatus StartJobs(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, int count, NodeSortOrder sortOrder, bool calculateDistance = false)
     {
 #if BENCHMARKING
         using var startJobsMarkerAuto = StartJobsMarker.Auto();
@@ -114,7 +131,7 @@ internal static class AsyncDistancePathfinding
 #if BENCHMARKING
         using var sortMarkerAuto = new TogglableProfilerAuto(SortMarker);
 #endif
-        status.SortNodes(enemy, target, farthestFirst);
+        status.SortNodes(enemy, target, sortOrder);
 #if BENCHMARKING
         sortMarkerAuto.Pause();
 #endif
@@ -137,7 +154,7 @@ internal static class AsyncDistancePathfinding
 
     internal static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, NodeSelectionCoroutine coroutine)
     {
-        var status = Statuses[enemy];
+        var status = GetStatus(enemy);
         if (status.CurrentSearchTypeID == searchTypeID)
             return status;
         if (status.Coroutine != null)
@@ -152,22 +169,22 @@ internal static class AsyncDistancePathfinding
         return status;
     }
 
-    private static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
+    private static EnemyDistancePathfindingStatus StartChoosingNode(EnemyAI enemy, int searchTypeID, Vector3 target, NodeSortOrder sortOrder, bool avoidLineOfSight, int offset, float capDistance)
     {
-        return StartChoosingNode(enemy, searchTypeID, status => ChooseNodeCoroutine(enemy, status, target, farthestFirst, avoidLineOfSight, offset, capDistance));
+        return StartChoosingNode(enemy, searchTypeID, status => ChooseNodeCoroutine(enemy, status, target, sortOrder, avoidLineOfSight, offset, capDistance));
     }
 
     internal static EnemyDistancePathfindingStatus StartChoosingFarthestNodeFromPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
     {
-        return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: true, avoidLineOfSight, offset, capDistance);
+        return StartChoosingNode(enemy, searchTypeID, target, NodeSortOrder.FarthestFirst, avoidLineOfSight, offset, capDistance);
     }
 
     internal static EnemyDistancePathfindingStatus StartChoosingClosestNodeToPosition(EnemyAI enemy, int searchTypeID, Vector3 target, bool avoidLineOfSight = false, int offset = 0, float capDistance = 0)
     {
-        return StartChoosingNode(enemy, searchTypeID, target, farthestFirst: false, avoidLineOfSight, offset, capDistance);
+        return StartChoosingNode(enemy, searchTypeID, target, NodeSortOrder.ClosestFirst, avoidLineOfSight, offset, capDistance);
     }
 
-    internal static IEnumerator ChooseNodeCoroutine(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, bool farthestFirst, bool avoidLineOfSight, int offset, float capDistance)
+    internal static IEnumerator ChooseNodeCoroutine(EnemyAI enemy, EnemyDistancePathfindingStatus status, Vector3 target, NodeSortOrder sortOrder, bool avoidLineOfSight, int offset, float capDistance)
     {
         if (enemy.allAINodes.Length == 0 || !enemy.agent.isOnNavMesh)
         {
@@ -179,7 +196,7 @@ internal static class AsyncDistancePathfinding
         }
 
         var candidateCount = enemy.allAINodes.Length;
-        StartJobs(enemy, status, target, candidateCount, farthestFirst);
+        StartJobs(enemy, status, target, candidateCount, sortOrder);
         var job = status.Job;
         var jobHandle = status.JobHandle;
 
@@ -248,6 +265,7 @@ internal static class AsyncDistancePathfinding
 
         while (!jobHandle.IsCompleted)
             yield return null;
+        jobHandle.Complete();
 
         status.Coroutine = null;
     }

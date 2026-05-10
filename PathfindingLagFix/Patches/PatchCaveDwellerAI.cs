@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -98,7 +98,7 @@ internal static class PatchCaveDwellerAI
         }
 
         var candidateCount = caveDweller.allAINodes.Length;
-        AsyncDistancePathfinding.StartJobs(caveDweller, status, target, candidateCount, farthestFirst: false, calculateDistance: true);
+        AsyncDistancePathfinding.StartJobs(caveDweller, status, target, candidateCount, NodeSortOrder.ClosestFirst, calculateDistance: true);
         var job = status.Job;
         var jobHandle = status.JobHandle;
 
