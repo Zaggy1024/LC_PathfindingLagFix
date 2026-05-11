@@ -140,7 +140,13 @@ internal static class PatchStingrayAI
     private static IEnumerator ChooseClosestNodeToPositionStingrayCoroutine(StingrayAI stingray, AsyncDistancePathfinding.EnemyDistancePathfindingStatus status, Vector3 target)
     {
         if (!stingray.agent.isOnNavMesh)
+        {
+            status.ChosenNode = stingray.transform;
+            status.MostOptimalDistance = 0;
+            yield return CoroutineWaiters.WaitForEndOfFrame;
+            status.Coroutine = null;
             yield break;
+        }
 
         var candidateCount = stingray.allAINodes.Length;
         AsyncDistancePathfinding.StartJobs(stingray, status, target, candidateCount, farthestFirst: false, calculateDistance: true);

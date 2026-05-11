@@ -89,7 +89,13 @@ internal static class PatchCaveDwellerAI
         status.MostOptimalDistance = -1;
 
         if (!caveDweller.agent.isOnNavMesh)
+        {
+            status.ChosenNode = caveDweller.transform;
+            status.MostOptimalDistance = 0;
+            yield return CoroutineWaiters.WaitForEndOfFrame;
+            status.Coroutine = null;
             yield break;
+        }
 
         var candidateCount = caveDweller.allAINodes.Length;
         AsyncDistancePathfinding.StartJobs(caveDweller, status, target, candidateCount, farthestFirst: false, calculateDistance: true);

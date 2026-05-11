@@ -173,6 +173,8 @@ internal static class AsyncDistancePathfinding
         {
             status.ChosenNode = enemy.transform;
             status.MostOptimalDistance = 0;
+            yield return CoroutineWaiters.WaitForEndOfFrame;
+            status.Coroutine = null;
             yield break;
         }
 
