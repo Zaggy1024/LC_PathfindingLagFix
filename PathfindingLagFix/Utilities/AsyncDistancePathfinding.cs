@@ -189,14 +189,24 @@ internal static class AsyncDistancePathfinding
         {
             yield return null;
             bool complete = true;
+            int lastSuccessfulPathIndex = -1;
             var pathsLeft = Math.Min(offset, candidateCount - 1);
 
             var enemyPosition = enemy.transform.position;
 
             for (int i = 0; i < candidateCount; i++)
             {
-                if (capDistanceSqr > 0 && (status.SortedPositions[i] - enemyPosition).sqrMagnitude > capDistanceSqr)
-                    continue;
+                if (capDistance > 0)
+                {
+                    if ((status.SortedPositions[i] - enemyPosition).sqrMagnitude > capDistanceSqr)
+                        continue;
+                    var dungeonIndex = RoundManager.Instance.currentDungeonType;
+                    if (dungeonIndex >= 0)
+                    {
+                        if (Math.Abs(status.SortedPositions[i].y - enemyPosition.y) > 12.5f * RoundManager.Instance.dungeonFlowTypes[dungeonIndex].MapTileSize)
+                            continue;
+                    }
+                }
 
                 var nodeStatus = job.Statuses[i];
                 if (nodeStatus.GetResult() == PathQueryStatus.InProgress)
@@ -211,6 +221,7 @@ internal static class AsyncDistancePathfinding
                     if (avoidLineOfSight && LineOfSight.PathIsBlockedByLineOfSight(path))
                         continue;
 
+                    lastSuccessfulPathIndex = i;
                     if (pathsLeft-- == 0)
                     {
                         result = i;
@@ -221,43 +232,17 @@ internal static class AsyncDistancePathfinding
                 }
             }
             if (complete)
+            {
+                if (result == -1)
+                    result = lastSuccessfulPathIndex;
                 break;
+            }
         }
 
         job.Cancel();
 
-        if (result == -1)
-        {
-            switch (ConfigOptions.CurrentOptions.DistancePathfindingFallbackNodeSelection)
-            {
-                case DistancePathfindingFallbackNodeSelectionType.BestPathable:
-                    for (var i = 0; i < candidateCount; i++)
-                    {
-                        if (job.Statuses[i].GetResult() == PathQueryStatus.Success)
-                        {
-                            result = i;
-                            break;
-                        }
-                    }
-                    break;
-                case DistancePathfindingFallbackNodeSelectionType.Vanilla:
-                    result = 0;
-                    break;
-                case DistancePathfindingFallbackNodeSelectionType.DontMove:
-                    break;
-            }
-        }
-
-        if (result == -1)
-        {
-            status.ChosenNode = enemy.transform;
-            status.MostOptimalDistance = 0;
-        }
-        else
-        {
-            status.ChosenNode = status.SortedNodes[result];
-            status.MostOptimalDistance = Vector3.Distance(target, status.SortedPositions[result]);
-        }
+        status.ChosenNode = status.SortedNodes[result];
+        status.MostOptimalDistance = Vector3.Distance(target, status.SortedPositions[result]);
 
         while (!jobHandle.IsCompleted)
             yield return null;

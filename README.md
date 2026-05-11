@@ -57,8 +57,7 @@ In order to allow easy configuration of these fixes, two presets are included to
 - OnlyFixes: The default, this will select only options that make what are deemed to be fixes to bugs in the vanilla behavior of enemies.
 - Vanilla: This will attempt to retain the behavior of the vanilla game as much as possible.
 
-They control two options that can be overridden individually:
-- DistancePathfindingFallbackNodeSelection: Sets how distance pathfinding, i.e. bracken evasion, behaves when it fails to find a valid path out of line of sight, or any other criteria. The default behavior is to only return reachable nodes. This can be changed to behave the same as vanilla, where the path may not be valid, resulting in the enemy stutter stepping towards the evasion node.
+Currently, there are no actual options backed by these presets, as the vanilla issues that necessitated them are now fixed.
 
 ## Thanks to
 - Lunxara - Tested the early beta versions that were crashing due to Unity silliness.
