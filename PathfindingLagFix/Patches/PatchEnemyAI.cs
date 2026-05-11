@@ -493,5 +493,6 @@ internal static class PatchEnemyAI
         AsyncRoamingPathfinding.RemoveStatus(__instance);
         PatchCaveDwellerAI.RemoveStatus(__instance);
         PatchBlobAI.RemoveStatus(__instance);
+        PatchStingrayAI.RemoveStatus(__instance);
     }
 }
