@@ -36,6 +36,10 @@ The enemy behaviors currently patched to run their pathfinding off the main thre
 - Maneater:
   - The search for a node to lurk near the player at when protecting its nest
   - The check to see if it is stuck and unable to path anywhere
+- Backwater gunkfish:
+  - The search for a hiding spot away from main entrance.
+  - The search for a hiding spot away from a player.
+  - The search for a hiding spot near a player.
 
 Other changes include:
 - General:
