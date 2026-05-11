@@ -1,3 +1,7 @@
+## Version 2.4.1
+- Reworked the gunkfish patch to behave exactly like vanilla while only using one pathfinding job instead of two.
+- Removed the `DistancePathfindingFallbackNodeSelection` option, vanilla now explicitly uses a very similar criteria to `BestPathable`.
+
 ## Version 2.4.0
 - Added patches to make some gunkfish pathfinding async to remove stutters on large maps.
 
