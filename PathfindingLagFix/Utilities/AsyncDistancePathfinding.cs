@@ -260,6 +260,9 @@ internal static class AsyncDistancePathfinding
 
         job.Cancel();
 
+        if (result == -1)
+            result = 0;
+
         status.ChosenNode = status.SortedNodes[result];
         status.MostOptimalDistance = Vector3.Distance(target, status.SortedPositions[result]);
 
