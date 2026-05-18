@@ -78,6 +78,8 @@ internal static class PatchEnemyAI
     [HarmonyPatch(nameof(EnemyAI.ChooseNextNodeInSearchRoutine), MethodType.Enumerator)]
     private static IEnumerable<CodeInstruction> ChooseNextNodeInSearchRoutineTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase method, ILGenerator generator)
     {
+        var useAsyncRoamingField = typeof(PatchEnemyAI).GetField(nameof(useAsyncRoaming), BindingFlags.NonPublic | BindingFlags.Static);
+
         FieldInfo state = null;
         FieldInfo current = null;
         FieldInfo index = null;
@@ -108,7 +110,7 @@ internal static class PatchEnemyAI
             return instructions;
         }
 
-        var injector = new ILInjector(instructions)
+        var injector = new ILInjector(instructions, generator)
             .Find(ILMatcher.Opcode(OpCodes.Switch));
 
         if (!injector.IsValid)
@@ -117,22 +119,30 @@ internal static class PatchEnemyAI
             return instructions;
         }
 
-        var switchLabels = (Label[])injector.Instruction.operand;
-
+        //   if (!currentSearch.calculatingNodeInSearch) {
+        //     yield return null;
+        //     continue;
+        //   }
         // + while (StopPreviousJobAndStartNewOne(this))
         // +   yield return null;
         //   yield return null;
         injector
-            .FindLabel(switchLabels[0]);
+            .Find([
+                ILMatcher.Ldloc(1),
+                ILMatcher.Ldfld(Reflection.f_EnemyAI_currentSearch),
+                ILMatcher.Ldfld(typeof(AISearchRoutine).GetField(nameof(AISearchRoutine.calculatingNodeInSearch))),
+                ILMatcher.Opcodes(OpCodes.Brtrue).CaptureOperandAs(out Label beginSearchLabel),
+            ])
+            .FindLabel(beginSearchLabel);
 
         if (!injector.IsValid)
         {
-            Plugin.Instance.Logger.LogError($"Failed to find the switch case 0 in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
+            Plugin.Instance.Logger.LogError($"Failed to find the start of node path checks in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
             return instructions;
         }
 
-        var skipYieldReturnNullOnJobNotStartedLabel = generator.DefineLabel();
         injector
+            .DefineLabel(out var skipYieldReturnNullOnJobNotStartedLabel)
             .InsertAfterBranch([
                 new(OpCodes.Ldloc_1),
                 new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(StopPreviousJobAndStartNewOne), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
@@ -148,41 +158,55 @@ internal static class PatchEnemyAI
             ])
             .AddLabel(skipYieldReturnNullOnJobNotStartedLabel);
 
-        //   if (i % 5 == 0)
-        //     yield return null;
-        // + PathQueryStatus pathState;
-        // + while ((pathState = GetPathStatus(this, i)) == PathQueryStatus.InProgress)
-        // +   yield return null;
-        // + if (pathState == PathQueryStatus.Failure) {
-        // +   EliminateNodeFromSearch(i);
-        // +   continue;
-        // + }
-        //   if (Vector3.Distance(currentSearch.currentSearchStartPosition, currentSearch.unsearchedNodes[i].transform.position) > currentSearch.searchWidth) {
+        // + if (useAsync) {
+        // +   PathQueryStatus pathState;
+        // +   while ((pathState = GetPathStatus(this, i)) == PathQueryStatus.InProgress)
+        // +     yield return null;
+        // +   if (pathState == PathQueryStatus.Failure) {
+        // +     EliminateNodeFromSearch(i);
+        // +     continue;
+        // +   }
+        // + } else
+        //   if (PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false)) {
         //     EliminateNodeFromSearch(i);
         //     continue;
         //   }
         injector
-            .FindLabel(switchLabels[2])
             .Find([
-                ILMatcher.Ldarg(0),
-                ILMatcher.Ldc(-1),
-                ILMatcher.Stfld(state),
-            ])
-            .GoToMatchEnd();
+                ILMatcher.Call(Reflection.m_EnemyAI_EliminateNodeFromSearch),
+                ILMatcher.Opcode(OpCodes.Br).CaptureOperandAs(out Label continueLabel),
+            ]);
 
         if (!injector.IsValid)
         {
-            Plugin.Instance.Logger.LogError($"Failed to find the switch case 2 in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
+            Plugin.Instance.Logger.LogError($"Failed to find the continue jump in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
+            return instructions;
+        }
+
+        injector
+            .GoToStart()
+            .Find([
+                ILMatcher.Call(Reflection.m_EnemyAI_PathIsIntersectedByLineOfSight),
+                ILMatcher.Opcode(OpCodes.Brfalse).CaptureOperandAs(out Label skipVanillaPathCheckLabel),
+            ])
+            .GoToPush(5);
+
+        if (!injector.IsValid)
+        {
+            Plugin.Instance.Logger.LogError($"Failed to find the check for a path to a node in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
             return instructions;
         }
 
         var pathStateLocal = generator.DeclareLocal(typeof(PathQueryStatus));
-        var skipYieldReturnNullOnPathInProgressLabel = generator.DefineLabel();
-        var skipEliminateNodeFromAsyncLabel = generator.DefineLabel();
-        var continueLabel = generator.DefineLabel();
         injector
+            .DefineLabel(out var skipAsyncPathCheckLabel)
+            .DefineLabel(out var pathReadyLabel)
             .InsertAfterBranch([
-                // while ((pathState = GetPathStatus(this, i)) == PathQueryStatus.InProgress)
+                // if (PatchEnemyAI.useAsyncRoaming) {
+                new CodeInstruction(OpCodes.Ldsfld, useAsyncRoamingField),
+                new CodeInstruction(OpCodes.Brfalse_S, skipAsyncPathCheckLabel),
+
+                // while ((pathState = GetPathStatus(this, i)) == PathQueryStatus.InProgress) {
                 new CodeInstruction(OpCodes.Ldloc_1),
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldfld, index),
@@ -190,7 +214,7 @@ internal static class PatchEnemyAI
                 new CodeInstruction(OpCodes.Dup),
                 new CodeInstruction(OpCodes.Stloc, pathStateLocal),
                 new CodeInstruction(OpCodes.Ldc_I4, (int)PathQueryStatus.InProgress),
-                new CodeInstruction(OpCodes.Bne_Un_S, skipYieldReturnNullOnPathInProgressLabel),
+                new CodeInstruction(OpCodes.Bne_Un_S, pathReadyLabel),
 
                 // yield return null;
                 new CodeInstruction(OpCodes.Ldarg_0),
@@ -202,10 +226,12 @@ internal static class PatchEnemyAI
                 new CodeInstruction(OpCodes.Ldc_I4_1),
                 new CodeInstruction(OpCodes.Ret),
 
-                // if (pathState == PathQueryStatus.Failure)
-                new CodeInstruction(OpCodes.Ldloc, pathStateLocal).WithLabels(skipYieldReturnNullOnPathInProgressLabel),
+                // }
+
+                // if (pathState == PathQueryStatus.Failure) {
+                new CodeInstruction(OpCodes.Ldloc, pathStateLocal).WithLabels(pathReadyLabel),
                 new CodeInstruction(OpCodes.Ldc_I4, (int)PathQueryStatus.Failure),
-                new CodeInstruction(OpCodes.Bne_Un_S, skipEliminateNodeFromAsyncLabel),
+                new CodeInstruction(OpCodes.Bne_Un_S, skipVanillaPathCheckLabel),
 
                 // EliminateNodeFromSearch(i);
                 new CodeInstruction(OpCodes.Ldloc_1),
@@ -215,50 +241,12 @@ internal static class PatchEnemyAI
 
                 // continue;
                 new CodeInstruction(OpCodes.Br, continueLabel),
+
+                // }
+
+                // } else
             ])
-            .AddLabel(skipEliminateNodeFromAsyncLabel);
-
-        // - else if (agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        // + else if (!PatchEnemyAI.useAsyncRoaming && agent.isOnNavMesh && PathIsIntersectedByLineOfSight(currentSearch.unsearchedNodes[i].transform.position, currentSearch.startedSearchAtSelf, avoidLineOfSight: false))
-        //     EliminateNodeFromSearch(i);
-        injector
-            .Find(ILMatcher.Call(Reflection.m_EnemyAI_PathIsIntersectedByLineOfSight))
-            .Find([
-                ILMatcher.Call(Reflection.m_EnemyAI_EliminateNodeFromSearch),
-                ILMatcher.Opcode(OpCodes.Br),
-            ]);
-
-        if (!injector.IsValid)
-        {
-            Plugin.Instance.Logger.LogError($"Failed to find where AI nodes are eliminated for failing to find a path in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
-            return instructions;
-        }
-
-        var skipEliminateNodeFromSyncLabel = generator.DefineLabel();
-        var existingContinueLabel = (Label)injector.LastMatchedInstruction.operand;
-        injector
-            .GoToMatchEnd()
-            .AddLabel(skipEliminateNodeFromSyncLabel)
-            .Back(2)
-            .ReverseFind([
-                ILMatcher.Call(Reflection.m_EnemyAI_EliminateNodeFromSearch),
-                ILMatcher.Opcode(OpCodes.Br),
-            ])
-            .GoToMatchEnd();
-
-        if (!injector.IsValid)
-        {
-            Plugin.Instance.Logger.LogError($"Failed to find the instruction before a path is tested in the enumerator for {nameof(EnemyAI)}.{nameof(EnemyAI.ChooseNextNodeInSearchRoutine)}().");
-            return instructions;
-        }
-
-        var useAsyncRoamingField = typeof(PatchEnemyAI).GetField(nameof(useAsyncRoaming), BindingFlags.NonPublic | BindingFlags.Static);
-
-        injector
-            .InsertAfterBranch([
-                new(OpCodes.Ldsfld, useAsyncRoamingField),
-                new(OpCodes.Brtrue_S, skipEliminateNodeFromSyncLabel),
-            ]);
+            .AddLabel(skipAsyncPathCheckLabel);
 
         // + if (PatchEnemyAI.useAsyncRoaming) {
         // +   PatchEnemyAI.SetPathDistance(this, i);
@@ -298,15 +286,15 @@ internal static class PatchEnemyAI
             ])
             .AddLabel(doSyncPathDistanceLabel);
 
-        // Add label to skip an iteration after eliminating a node.
-        injector
-            .FindLabel(existingContinueLabel)
-            .AddLabel(continueLabel);
-
         return injector
-            .GoToEnd()
-            .ReverseFind(ILMatcher.Opcode(OpCodes.Ret))
-            .Insert([
+            .Find([
+                ILMatcher.Ldarg(0),
+                ILMatcher.Ldfld(index),
+                ILMatcher.Ldc(0),
+                ILMatcher.Opcodes(OpCodes.Bge),
+            ])
+            .GoToMatchEnd()
+            .InsertAfterBranch([
                 new(OpCodes.Ldloc_1),
                 new(OpCodes.Call, typeof(PatchEnemyAI).GetMethod(nameof(CancelJobs), BindingFlags.NonPublic | BindingFlags.Static, [typeof(EnemyAI)])),
             ])
