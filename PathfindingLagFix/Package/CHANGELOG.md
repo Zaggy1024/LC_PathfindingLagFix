@@ -1,3 +1,7 @@
+## Version 2.4.2
+- Updated the roaming patch to function properly in v81+.
+- Fixed an `IndexOutOfRangeException` thrown when an enemy can't find any paths in `ChooseFarthestNodeFromPosition()` or `ChooseClosestNodeToPosition()`.
+
 ## Version 2.4.1
 - Reworked the gunkfish patch to behave exactly like vanilla while only using one pathfinding job instead of two.
 - Removed the `DistancePathfindingFallbackNodeSelection` option, vanilla now explicitly uses a very similar criteria to `BestPathable`.
